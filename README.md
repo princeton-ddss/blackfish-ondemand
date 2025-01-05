@@ -6,7 +6,8 @@ users authenticate and interact with the server in their browser via the Blackfi
 ## Setup
 Until Blackfish is globally available as a module or tool (i.e., `/user/bin/blackfish`), users must
 manually install and setup Blackfish before launching the OnDemand application:
-```
+
+```shell
 # Install Blackfish to `base` environment
 module load anaconda3/2024.6
 pip install blackfish

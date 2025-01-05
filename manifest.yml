@@ -1,0 +1,7 @@
+---
+name: Blackfish
+category: Interactive Apps
+subcategory: Servers
+role: batch_connect
+description:
+  This app launches a Blackfish server on a single node.
