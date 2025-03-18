@@ -8,6 +8,7 @@ form:
   # - bc_account
   # - bc_queue
   - bc_num_hours
+  - cache_dir
 attributes:
   # modules: "anaconda3/2024.6"
   # blackfish_home_dir:
@@ -16,8 +17,8 @@ attributes:
   # blackfish_cache_dir:
   #   label: "Blackfish Cache"
   #   help: "Do not change this unless you know what you are doing."
-  # bc_account:
-  #   help: "Leave blank unless using multiple projects."
+  bc_account:
+    help: "Leave blank unless using multiple projects."
   bc_num_hours:
     value: 1
     label: "Duration"
@@ -25,4 +26,4 @@ attributes:
   cache_dir:
     value: "/scratch/gpfs/ddsscloud/.blackfish"
     label: "Cache Directory"
-    help: "Location to look for model and image file. Do not modify unless you know what you are doing."
+    help: "Location to look for shared model and image file."
