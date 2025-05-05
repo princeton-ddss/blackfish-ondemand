@@ -7,12 +7,35 @@ cd "${staged_root}/static"
 
 # Load required modules
 module purge
-module load anaconda3/2024.6
+module load anaconda3/2024.6 # python 3.12.4
 module list
-conda activate bf
+            
+# Create a conda environment
+if conda env list | grep "blackfish" > /dev/null 2>&1; then # or, if [ -d $HOME/.conda/envs/blackfish ]; then
+    echo "Blackfish conda environment 'blackfish' already exists.";
+else
+    echo "Creating new Blackfish conda environment 'blackfish'.";
+    conda create --quiet --yes --name blackfish python=3.12
+fi
 
-echo "TIMING - Starting Blackfish at: $(date)"
+echo "Activating Blackfish conda environment 'blackfish'.";
+conda activate blackfish
+    
+# Install Blackfish
+echo "Installing Blackfish"
+pip install --quiet 'blackfish @ git+https://github.com/princeton-ddss/blackfish.git'
+
+# Setup Blackfish
+blackfish init --auto \
+  --auto
+  --app_dir $HOME/.blackfish-ondemand
+  --schema slurm
+  --host localhost
+  --user $USER
+  --home_dir $HOME/.blackfish-ondemand
+  --cache_dir /scratch/gpfs/ddsscloud/.blackfish
 
 # Start Blackfish server
+echo "TIMING - Starting Blackfish at: $(date)"
 set -x
 blackfish start # --auth_token=${BLACKFISH_TOKEN}
