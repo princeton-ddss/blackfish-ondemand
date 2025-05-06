@@ -40,6 +40,7 @@ echo "> done."
 echo "Finished building next.js.\n"
 
 # Set Blackfish environment variables
+mkdir "${HOME}/.blackfish-ondemand"
 echo "Setting Blackfish environment variables..."
 export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
 export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
