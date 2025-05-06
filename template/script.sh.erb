@@ -2,8 +2,7 @@
 
 echo "TIMING - Starting main script at: $(date)"
 
-# cd "${HOME}"
-cd "${staged_root}/static"
+cd "${HOME}"
 
 # Load required modules
 module purge
@@ -18,9 +17,10 @@ module list
 #     conda create --quiet --yes --name blackfish python=3.12
 # fi
 
-echo "Activating Blackfish conda environment '/scratch/gpfs/ddsscloud/.blackfish/envs/blackfish-0.1.0'.";
+echo "Activating Blackfish conda environment 'blackfish-0.1.0'.";
 # conda activate blackfish
-conda activate /scratch/gpfs/ddsscloud/.blackfish/envs/blackfish-0.1.0/
+# conda activate /scratch/gpfs/ddsscloud/.blackfish/envs/blackfish-0.1.0/
+conda activate 'blackfish-0.1.0'
 
 # Install Blackfish
 # echo "Installing Blackfish"
