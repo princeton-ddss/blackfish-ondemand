@@ -39,8 +39,12 @@ rm -rf "${staged_root}/static/build/out"
 echo "> done."
 echo "Finished building next.js.\n"
 
-# Set Blackfish environment variables
-mkdir "${HOME}/.blackfish-ondemand"
+# Create Blackfish home directory
+if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
+  mkdir -p "${HOME}/.blackfish-ondemand"
+fi
+
+  # Set Blackfish environment variables
 echo "Setting Blackfish environment variables..."
 export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
 export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
