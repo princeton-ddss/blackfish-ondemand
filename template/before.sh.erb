@@ -31,7 +31,7 @@ apptainer run \
   --cwd /app \
   --bind "${staged_root}/static/build:/app/build" \
   --bind "${staged_root}/static/.next:/app/.next" \
-  /home/cs7101/images/blackfish-ui_ondemand-latest.sif
+  /scratch/gpfs/ddsscloud/.blackfish/images/blackfish-ui_ondemand-latest.sif
 echo "> done."
 echo "> cleaning up..."
 cp -R ${staged_root}/static/build/out/* ${staged_root}/static/build
