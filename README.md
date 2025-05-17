@@ -3,23 +3,53 @@ This is the Open OnDemand application for the Blackfish project at Princeton Uni
 Blackfish server on a Della visualization node with minimal resources. Once the server is launched,
 users authenticate and interact with the server in their browser via the Blackfish UI.
 
-## Setup
-Until Blackfish is globally available as a module or tool (i.e., `/user/bin/blackfish`), users must
-manually install and setup Blackfish before launching the OnDemand application:
 
+## Deployment
+
+### Setup
+For `STAGE = 'dev', 'share'`:
 ```shell
-# Install Blackfish to `base` environment
+# Download OnDemand code
+cd $HOME/ondemand/$STAGE && git clone https://github.com/princeton-ddss/blackfish-ondemand.git
+cd blackfish-ondemand
+git pull
+# Download Blackfish code
+mkdir src
+git clone https://github.com/princeton-ddss/blackfish.git
+git clone https://github.com/princeton-ddss/blackfish-ui.git
+# Create conda environment
 module load anaconda3/2024.6
-pip install blackfish
-which blackfish # check installation worked
-
-# Setup Blackfish
-blackfish init
-# Enter these values at the prompts:
-# name = default
-# type = slurm
-# host = localhost
-# user = $whoami
-# home_dir = $HOME/.blackfish
-# cache_dir = /scratch/gpfs/ddsscloud/.blackfish
+conda create --prefix $HOME/ondemand/$STAGE/blackfish-ondemand/.venv python=3.12
+conda activate $HOME/ondemand/$STAGE/blackfish-ondemand/.venv python=3.12
+conda install nodejs
+# Install Blackfish
+pip install src/blackfish
+cd src/blackfish-ui
+npm install .
 ```
+
+### Testing
+To test changes, simply checkout the new commit and run the application. For example,
+```shell
+# blackfish
+cd $HOME/ondemand/dev/blackfish-ondemand/src/blackfish
+git fetch origin
+git checkout pri-123-fix-the-thing
+git pull origin
+module load anconda3/2024.6
+pip install src/blackfish
+# blackfish-ui
+cd $HOME/ondemand/dev/blackfish-ondemand/src/blackfish-ui
+git fetch origin
+git checkout pri-123-fix-the-thing
+git pull origin
+module load anconda3/2024.6
+npm install .
+```
+
+### Production
+Pushing updates to production involves the same process as above applied to the production directory: pull and install changes to the source code in `$HOME/ondemand/share/blackfish-ondemand`.
+
+
+## Service Updates
+Updating service versions is simple matter of updating the default image version specified in the `Blackfish` source code. Thus, it is the same process as deploying a new version of `blackfish` and ensuring that the new image version is made available in the shared cache directory, `/scratch/gpfs/ddsscloud/.blackfish/images`.
