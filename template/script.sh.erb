@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 
-echo "TIMING - Starting main script at: $(date)"
-
-cd "${HOME}"
-
-# Load required modules
-module purge
-module load anaconda3/2024.6 # python 3.12.4
-module list
-
-# Activate conda environment
-echo "Activating Blackfish conda environment '/scratch/gpfs/ddsscloud/.blackfish/envs/blackfish-0.1.0";
-conda activate /scratch/gpfs/ddsscloud/.blackfish/envs/blackfish-0.1.0/
-
 # Setup Blackfish
+printf "Initializing Blackfish...\n"
+if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
+  mkdir -p "${HOME}/.blackfish-ondemand"
+fi
+export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
+export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
+export BLACKFISH_STATIC_DIR="${STAGED_ROOT}/static"
+export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
+export BLACKFISH_TOKEN=u'sha1:${SALT}:${PASSWORD_SHA1}'
+printf "> BLACKFISH_HOST=${BLACKFISH_HOST}\n"
+printf "> BLACKFISH_PORT=${BLACKFISH_PORT}\n"
+printf "> BLACKFISH_STATIC_DIR=${BLACKFISH_STATIC_DIR}\n"
+printf "> BLACKFISH_HOME_DIR=${BLACKFISH_HOME_DIR}\n"
+printf "> BLACKFISH_TOKEN=${BLACKFISH_TOKEN}\n\n"
 blackfish init --auto \
   --app_dir $HOME/.blackfish-ondemand \
   --schema slurm \
@@ -23,6 +24,6 @@ blackfish init --auto \
   --cache_dir /scratch/gpfs/ddsscloud/.blackfish
 
 # Start Blackfish server
-echo "TIMING - Starting Blackfish at: $(date)"
+printf "Starting Blackfish at: $(date)\n"
 set -x
 blackfish start # --auth_token=${BLACKFISH_TOKEN}
