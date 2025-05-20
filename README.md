@@ -25,6 +25,7 @@ conda install nodejs
 # Install Blackfish
 pip install src/blackfish
 cd src/blackfish-ui
+npx update-browserslist-db@latest
 npm install .
 ```
 
@@ -44,6 +45,7 @@ git fetch origin
 git checkout pri-123-fix-the-thing
 git pull origin
 module load anconda3/2024.6
+npx update-browserslist-db@latest
 npm install .
 ```
 
