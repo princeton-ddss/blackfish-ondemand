@@ -16,12 +16,12 @@ printf "> BLACKFISH_STATIC_DIR=${BLACKFISH_STATIC_DIR}\n"
 printf "> BLACKFISH_HOME_DIR=${BLACKFISH_HOME_DIR}\n"
 printf "> BLACKFISH_TOKEN=${BLACKFISH_TOKEN}\n\n"
 blackfish init --auto \
-  --app_dir $HOME/.blackfish-ondemand \
+  --app-dir $HOME/.blackfish-ondemand \
   --schema slurm \
   --host localhost \
   --user $USER \
-  --home_dir $HOME/.blackfish-ondemand \
-  --cache_dir /scratch/gpfs/ddsscloud/.blackfish
+  --home-dir $HOME/.blackfish-ondemand \
+  --cache-dir /scratch/gpfs/ddsscloud/.blackfish
 
 # Start Blackfish server
 printf "Starting Blackfish at: $(date)\n"
