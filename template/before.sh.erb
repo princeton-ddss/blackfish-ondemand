@@ -1,51 +1,53 @@
+#!/usr/bin/env bash
+
 # Export the module function if it exists
 [[ $(type -t module) == "function" ]] && export -f module
 [[ x$(type -t module) != "xfunction" && -e /etc/profile.d/modules.sh ]] && source /etc/profile.d/modules.sh
 
+# Check the staging environment
+if [[ "${PWD}" == */dev/blackfish-ondemand* ]]; then
+  export STAGED_ENV="dev"
+  printf "Deploying development build (STAGED_ENV=${STAGED_ENV}).\n"
+else
+  export STAGED_ENV="stage"
+  printf "Deploying production build (STAGED_ENV=${STAGED_ENV}).\n"
+fi
+
+# Load required modules
+printf "Loading required modules..."
+module purge
+module load anaconda3/2024.6 # python 3.12.4
+conda activate /home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/.venv
+printf "done.\n"
+
 # Find available port to run server on
-echo "Finding a port..."
+printf "Finding an available a port..."
 port=$(find_port)
-echo "> using port ${port}"
+printf "done. Using port ${port}\n"
 
 # Generate SHA1 encrypted password (requires OpenSSL installed)
+printf "Generating password..."
 SALT="$(create_passwd 16)"
 password="$(create_passwd 16)"
 PASSWORD_SHA1="$(echo -n "${password}${SALT}" | openssl dgst -sha1 | awk '{print $NF}')"
+printf "done.\n"
 
 # Build Blackfish UI
-echo "Building next.js in <%= session.staged_root %>..."
-suffix=".princeton.edu"
-export NEXT_PUBLIC_BLACKFISH_DOMAIN="mydella.princeton.edu/rnode"
-export NEXT_PUBLIC_BLACKFISH_HOST="${host%$suffix}"
+printf "Building Next.js...\n"
+start_time="$(date +%s)"
+export STAGED_ROOT="<%= session.staged_root %>"
+export STAGED_ID="<%= session.id %>"
+export NEXT_PUBLIC_BLACKFISH_DOMAIN="mydella-test.princeton.edu/rnode"
+export NEXT_PUBLIC_BLACKFISH_HOST="${host%.princeton.edu}"
 export NEXT_PUBLIC_BLACKFISH_PORT="${port}"
-staged_root="<%= session.staged_root %>"
-echo "> NEXT_PUBLIC_BLACKFISH_DOMAIN=${NEXT_PUBLIC_BLACKFISH_DOMAIN}"
-echo "> NEXT_PUBLIC_BLACKFISH_HOST=${NEXT_PUBLIC_BLACKFISH_HOST}"
-echo "> NEXT_PUBLIC_BLACKFISH_PORT=${NEXT_PUBLIC_BLACKFISH_PORT}"
-mkdir -p "${staged_root}/static/build"
-mkdir -p "${staged_root}/static/.next"
-echo "> starting apptainer..."
-apptainer run \
-  --env "ASSET_PREFIX=/rnode/${host}/${port}" \
-  --env "BASE_PATH=/rnode/${host}/${port}" \
-  --cwd /app \
-  --bind "${staged_root}/static/build:/app/build" \
-  --bind "${staged_root}/static/.next:/app/.next" \
-  /home/cs7101/images/blackfish-ui_ondemand-latest.sif
-echo "> done."
-echo "> cleaning up..."
-cp -R ${staged_root}/static/build/out/* ${staged_root}/static/build
-rm -rf "${staged_root}/static/build/out"
-echo "> done."
-echo "Finished building next.js.\n"
-
-# Set Blackfish environment variables
-echo "Setting Blackfish environment variables..."
-export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
-export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
-export BLACKFISH_STATIC_DIR="${staged_root}/static"
-export BLACKFISH_TOKEN=u'sha1:${SALT}:${PASSWORD_SHA1}'
-echo "> BLACKFISH_HOST=${BLACKFISH_HOST}"
-echo "> BLACKFISH_PORT=${BLACKFISH_PORT}"
-echo "> BLACKFISH_STATIC_DIR=${BLACKFISH_STATIC_DIR}"
-echo "> BLACKFISH_TOKEN=${BLACKFISH_TOKEN}\n"
+printf "> NEXT_PUBLIC_BLACKFISH_DOMAIN=${NEXT_PUBLIC_BLACKFISH_DOMAIN}\n"
+printf "> NEXT_PUBLIC_BLACKFISH_HOST=${NEXT_PUBLIC_BLACKFISH_HOST}\n"
+printf "> NEXT_PUBLIC_BLACKFISH_PORT=${NEXT_PUBLIC_BLACKFISH_PORT}\n"
+mkdir -p "${STAGED_ROOT}/static/build"
+export DIST_DIR="build/${STAGED_ID}"
+export ASSET_PREFIX="/rnode/${host}/${port}"
+export BASE_PATH="/rnode/${host}/${port}"
+npm run build --prefix "/home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/src/blackfish-ui"
+cp -R /home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/src/blackfish-ui/${DIST_DIR}/* ${STAGED_ROOT}/static/build
+end_time="$(date +%s)"
+printf "Finished building Next.js in %s seconds.\n" "$((end_time - start_time))"
