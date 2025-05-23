@@ -1,6 +1,6 @@
 # Wait for the Blackfish server to start
 printf "Waiting for Blackfish server to open port ${port}...\n"
-if wait_until_port_used "${host}:${port}" 60; then
+if wait_until_port_used "${host}:${port}" 120; then
   printf "Blackfish server listening on port ${port}!\n"
 else
   printf "Timed out waiting for Blackfish server to open port ${port}!\n"
