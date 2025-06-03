@@ -25,11 +25,9 @@ printf "Finding an available a port..."
 port=$(find_port)
 printf "done. Using port ${port}\n"
 
-# Generate SHA1 encrypted password (requires OpenSSL installed)
+# Generate password
 printf "Generating password..."
-SALT="$(create_passwd 16)"
 password="$(create_passwd 16)"
-PASSWORD_SHA1="$(echo -n "${password}${SALT}" | openssl dgst -sha1 | awk '{print $NF}')"
 printf "done.\n"
 
 # Build Blackfish UI
