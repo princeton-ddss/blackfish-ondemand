@@ -5,12 +5,14 @@ printf "Initializing Blackfish...\n"
 if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
   mkdir -p "${HOME}/.blackfish-ondemand"
 fi
+export BLACKFISH_BASE_PATH="/node/${host}/${port}"
 export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
 export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
 export BLACKFISH_STATIC_DIR="${STAGED_ROOT}/static"
 export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
 export BLACKFISH_DEBUG=0
 export BLACKFISH_AUTH_TOKEN="${password}"
+printf "> BLACKFISH_BASE_PATH=${BLACKFISH_BASE_PATH}\n"
 printf "> BLACKFISH_HOST=${BLACKFISH_HOST}\n"
 printf "> BLACKFISH_PORT=${BLACKFISH_PORT}\n"
 printf "> BLACKFISH_STATIC_DIR=${BLACKFISH_STATIC_DIR}\n"
