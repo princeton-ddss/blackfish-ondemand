@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
-# Setup Blackfish
 printf "Initializing Blackfish...\n"
 if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
   mkdir -p "${HOME}/.blackfish-ondemand"
 fi
 export BLACKFISH_BASE_PATH="/node/${host}/${port}"
-export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
-export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
+export BLACKFISH_HOST="${host%.princeton.edu}"
+export BLACKFISH_PORT="${port}"
 export BLACKFISH_STATIC_DIR="${STAGED_ROOT}/static"
 export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
 export BLACKFISH_DEBUG=0
@@ -26,8 +25,8 @@ blackfish init --auto \
   --user $USER \
   --home-dir $HOME/.blackfish-ondemand \
   --cache-dir /scratch/gpfs/ddsscloud/.blackfish
+printf "done.\n"
 
-# Start Blackfish server
 printf "Starting Blackfish at: $(date)\n"
 set -x
 blackfish start
