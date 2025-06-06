@@ -29,6 +29,9 @@ npx update-browserslist-db@latest
 npm install .
 ```
 
+> [!NOTE]
+> The Blackfish API source code is only needed for development and testing purposes. For deployment, you can simply `pip install blackfish-ai`.
+
 ### Testing
 To test changes, simply checkout the new commit and run the application. For example,
 ```shell
@@ -50,8 +53,8 @@ npm install .
 ```
 
 ### Production
-Pushing updates to production involves the same process as above applied to the production directory: pull and install changes to the source code in `$HOME/ondemand/share/blackfish-ondemand`.
+Pushing updates to production involves the same process as above applied to the production directory: pull and install changes to the source code in `$HOME/ondemand/share/blackfish-ondemand` (or just `pip install --upgrade blackfish-ai` for the API).
 
 
 ## Service Updates
-Updating service versions is simple matter of updating the default image version specified in the `Blackfish` source code. Thus, it is the same process as deploying a new version of `blackfish` and ensuring that the new image version is made available in the shared cache directory, `/scratch/gpfs/ddsscloud/.blackfish/images`.
+Updating service versions is simply matter of updating the default image version specified in the `Blackfish` source code. Thus, it is the same process as deploying a new version of `blackfish` and ensuring that the new image version is made available in the shared cache directory, `/scratch/gpfs/ddsscloud/.blackfish/images`.
