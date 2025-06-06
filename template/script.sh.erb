@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 
-# Setup Blackfish
 printf "Initializing Blackfish...\n"
 if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
   mkdir -p "${HOME}/.blackfish-ondemand"
 fi
-export BLACKFISH_HOST="${NEXT_PUBLIC_BLACKFISH_HOST}"
-export BLACKFISH_PORT="${NEXT_PUBLIC_BLACKFISH_PORT}"
+export BLACKFISH_BASE_PATH="/node/${host}/${port}"
+export BLACKFISH_HOST="${host%.princeton.edu}"
+export BLACKFISH_PORT="${port}"
 export BLACKFISH_STATIC_DIR="${STAGED_ROOT}/static"
 export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
-export BLACKFISH_TOKEN=u'sha1:${SALT}:${PASSWORD_SHA1}'
+export BLACKFISH_DEBUG=0
+export BLACKFISH_AUTH_TOKEN="${password}"
+printf "> BLACKFISH_BASE_PATH=${BLACKFISH_BASE_PATH}\n"
 printf "> BLACKFISH_HOST=${BLACKFISH_HOST}\n"
 printf "> BLACKFISH_PORT=${BLACKFISH_PORT}\n"
 printf "> BLACKFISH_STATIC_DIR=${BLACKFISH_STATIC_DIR}\n"
 printf "> BLACKFISH_HOME_DIR=${BLACKFISH_HOME_DIR}\n"
-printf "> BLACKFISH_TOKEN=${BLACKFISH_TOKEN}\n\n"
+printf "> BLACKFISH_DEBUG=${BLACKFISH_DEBUG}\n"
+printf "> BLACKFISH_AUTH_TOKEN=${BLACKFISH_AUTH_TOKEN}\n\n"
 blackfish init --auto \
   --app-dir $HOME/.blackfish-ondemand \
   --schema slurm \
@@ -22,8 +25,8 @@ blackfish init --auto \
   --user $USER \
   --home-dir $HOME/.blackfish-ondemand \
   --cache-dir /scratch/gpfs/ddsscloud/.blackfish
+printf "done.\n"
 
-# Start Blackfish server
 printf "Starting Blackfish at: $(date)\n"
 set -x
-blackfish start # --auth_token=${BLACKFISH_TOKEN}
+blackfish start

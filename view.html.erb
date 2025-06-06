@@ -1,1 +1,5 @@
-<a href="/rnode/<%= host %>/<%= port %>/">Connect</a>
+<form action="/node/<%= host %>/<%= port %>/api/login?token=<%= password %>" method="post" target="_blank">
+  <button class="btn btn-primary" type="submit">
+    <i class="fa fa-cogs"></i> Connect to Blackfish
+  </button>
+</form>
