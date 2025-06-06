@@ -5,3 +5,5 @@ subcategory: Servers
 role: batch_connect
 description: This app launches a Blackfish server on a single node.
 icon: fas://cog
+metadata:
+  version: 0.1.2-dev
