@@ -8,7 +8,7 @@ if [[ "${PWD}" == */dev/blackfish-ondemand* ]]; then
   export STAGED_ENV="dev"
   printf "Deploying development build (STAGED_ENV=${STAGED_ENV}).\n"
 else
-  export STAGED_ENV="stage"
+  export STAGED_ENV="share"
   printf "Deploying production build (STAGED_ENV=${STAGED_ENV}).\n"
 fi
 
