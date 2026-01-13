@@ -6,39 +6,35 @@
 
 if [[ "${PWD}" == */dev/blackfish-ondemand* ]]; then
   export STAGED_ENV="dev"
-  printf "Deploying development build (STAGED_ENV=${STAGED_ENV}).\n"
+  printf "Deploying development app (STAGED_ENV=${STAGED_ENV}).\n"
 else
   export STAGED_ENV="share"
-  printf "Deploying production build (STAGED_ENV=${STAGED_ENV}).\n"
+  printf "Deploying production app (STAGED_ENV=${STAGED_ENV}).\n"
 fi
 
-printf "Loading required modules..."
+export APP_DIR="/home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand"
+export BLACKFISH_VERSION=$(cat "${APP_DIR}/.blackfish-version")
+
+printf "Loading required modules...\n"
 module purge
-module load anaconda3/2024.6 # python 3.12.4
-conda activate /home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/.venv
+module load anaconda3/2024.6
+
+printf "Setting up user environment...\n"
+export USER_ENV="${HOME}/.blackfish-ondemand/.venv"
+if [ ! -d "${USER_ENV}" ]; then
+  printf "Creating conda environment at ${USER_ENV}...\n"
+  conda create --prefix "${USER_ENV}" python=3.12 --yes
+fi
+conda activate "${USER_ENV}"
+
+printf "Installing blackfish-ai==${BLACKFISH_VERSION}...\n"
+pip install blackfish-ai==${BLACKFISH_VERSION}
 printf "done.\n"
 
-printf "Finding an available a port..."
+printf "Finding an available port..."
 port=$(find_port)
 printf "done. Using port ${port}\n"
 
 printf "Generating password..."
 export password="$(create_passwd 16)"
 printf "done.\n"
-
-printf "Building Blackfish UI...\n"
-start_time="$(date +%s)"
-export STAGED_ROOT="<%= session.staged_root %>"
-export STAGED_ID="<%= session.id %>"
-export NEXT_PUBLIC_BLACKFISH_URL="/node/${host}/${port}"
-export NEXT_PUBLIC_BASE_PATH="/node/${host}/${port}"
-printf "> NEXT_PUBLIC_BLACKFISH_URL=${NEXT_PUBLIC_BLACKFISH_URL}\n"
-printf "> NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}\n"
-mkdir -p "${STAGED_ROOT}/static/build"
-export DIST_DIR="build/${STAGED_ID}"
-export ASSET_PREFIX="/node/${host}/${port}"
-export BASE_PATH="/node/${host}/${port}"
-npm run build --prefix "/home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/src/blackfish-ui"
-cp -R /home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand/src/blackfish-ui/${DIST_DIR}/* ${STAGED_ROOT}/static/build
-end_time="$(date +%s)"
-printf "done. Build time: %s seconds.\n" "$((end_time - start_time))"
