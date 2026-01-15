@@ -27,8 +27,8 @@ if [ ! -d "${USER_ENV}" ]; then
 fi
 conda activate "${USER_ENV}"
 
-printf "Installing blackfish-ai==${BLACKFISH_VERSION}...\n"
-pip install blackfish-ai==${BLACKFISH_VERSION}
+printf "Installing blackfish-ai${BLACKFISH_VERSION}...\n"
+pip install "blackfish-ai${BLACKFISH_VERSION}"
 printf "done.\n"
 
 printf "Finding an available port..."
