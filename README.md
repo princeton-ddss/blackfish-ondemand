@@ -21,10 +21,12 @@ That's it. The application automatically:
 
 ### Updating Blackfish Version
 
-The required Blackfish version is specified in `.blackfish-version`. To update:
+The required Blackfish version is specified in `.blackfish-version` using a [compatible release](https://peps.python.org/pep-0440/#compatible-release) specifier (e.g., `~=0.4.0`). This allows patch updates automatically while requiring explicit updates for new minor versions.
+
+To update:
 
 1. Test the new version of `blackfish-ai` in the dev environment
-2. Update `.blackfish-version` with the new version number
+2. Update `.blackfish-version` with the new version specifier (e.g., `~=0.5.0`)
 3. Commit and push the change
 4. Pull the change to `$HOME/ondemand/$STAGE`
 
