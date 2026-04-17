@@ -20,15 +20,13 @@ module purge
 module load anaconda3/2024.6
 
 printf "Setting up user environment...\n"
-export USER_ENV="${HOME}/.blackfish-ondemand/.venv"
-if [ ! -d "${USER_ENV}" ]; then
-  printf "Creating conda environment at ${USER_ENV}...\n"
-  conda create --prefix "${USER_ENV}" python=3.12 --yes
+if ! conda env list | grep -q "^blackfish-ondemand "; then
+  conda create --name blackfish-ondemand python=3.12 --yes
 fi
-conda activate "${USER_ENV}"
+conda activate blackfish-ondemand
 
 printf "Installing blackfish-ai${BLACKFISH_VERSION}...\n"
-pip install "blackfish-ai${BLACKFISH_VERSION}"
+python -m pip install --upgrade "blackfish-ai${BLACKFISH_VERSION}"
 printf "done.\n"
 
 printf "Finding an available port..."

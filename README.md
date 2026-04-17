@@ -16,7 +16,8 @@ cd $HOME/ondemand/$STAGE && git clone https://github.com/princeton-ddss/blackfis
 
 That's it. The application automatically:
 
-- Creates a per-user conda environment at `~/.blackfish-ondemand/.venv`
+- Creates a per-user `blackfish-ondemand` conda environment
+- Creates a default profile with `home_dir=~/.blackfish-ondemand`
 - Installs the correct version of `blackfish-ai` (specified in `.blackfish-version`)
 
 ### Updating Blackfish Version
@@ -54,4 +55,4 @@ git pull origin main
 
 ## Service Updates
 
-Updating service versions is simply a matter of updating the default image version specified in the Blackfish source code. Ensure the new image version is available in the shared cache directory at `/scratch/gpfs/ddsscloud/.blackfish/images`.
+Updating service versions is simply a matter of updating the default image version specified in the Blackfish source code. Ensure the new image version is available in the shared cache directory at `/scratch/gpfs/DDSS/.blackfish/images`.
