@@ -20,6 +20,9 @@ module purge
 module load anaconda3/2024.6
 
 printf "Setting up user environment...\n"
+# Ignore ~/.local so packages installed with `pip install --user` can't shadow
+# the app's environment, both for pip below and for `blackfish start`.
+export PYTHONNOUSERSITE=1
 if ! conda env list | grep -q "^blackfish-ondemand "; then
   conda create --name blackfish-ondemand python=3.12 --yes
 fi
