@@ -1,0 +1,7 @@
+<% require 'erb' %>
+<%
+status_path = staged_root.join('launch-status.txt')
+message = status_path.file? ? status_path.read(2048).strip : 'No launch progress was recorded.'
+%>
+<p><strong>Last Blackfish launch step:</strong> <%= ERB::Util.html_escape(message) %></p>
+<p>The session has ended. Open <code>output.log</code> in the session directory for details.</p>

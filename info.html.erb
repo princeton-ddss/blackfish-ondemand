@@ -1,0 +1,15 @@
+<% require 'erb' %>
+<% unless completed? %>
+<%
+status_path = staged_root.join('launch-status.txt')
+launch_message = if queued?
+                   'Waiting for a cluster node. Blackfish setup begins when the job starts.'
+                 elsif status_path.file?
+                   status_path.read(2048).strip
+                 else
+                   'Preparing to launch Blackfish.'
+                 end
+%>
+<p role="status"><strong>Blackfish:</strong> <%= ERB::Util.html_escape(launch_message) %></p>
+<p>Refresh this page for the latest launch step. Open <code>output.log</code> in the session directory for detailed progress and errors.</p>
+<% end %>
