@@ -1,30 +1,39 @@
 #!/usr/bin/env bash
+<% require 'shellwords' %>
 
-printf "Initializing Blackfish...\n"
-if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
-  mkdir -p "${HOME}/.blackfish-ondemand"
-fi
+set +x
+set -eE -o pipefail
+umask 077
+source "$(dirname "${BASH_SOURCE[0]}")/launch_helpers.sh"
+trap 'launch_fail "Blackfish initialization or server process exited with an error"' ERR
+
+export BLACKFISH_HOME_DIR=<%= Shellwords.escape(context.home_dir.to_s) %>
+cache_dir=<%= Shellwords.escape(context.cache_dir.to_s) %>
+[[ "$BLACKFISH_HOME_DIR" == /* ]] || launch_fail "Home directory must be an absolute path"
+[[ "$cache_dir" == /* ]] || launch_fail "Cache directory must be an absolute path"
+[[ -d "$cache_dir" && -r "$cache_dir" && -x "$cache_dir" ]] || launch_fail "Cache directory must exist and be readable"
+
+launch_status "Preparing Blackfish home directory"
+mkdir -p -- "$BLACKFISH_HOME_DIR"
+[[ -w "$BLACKFISH_HOME_DIR" && -x "$BLACKFISH_HOME_DIR" ]] || launch_fail "Home directory must be writable"
+
 export BLACKFISH_BASE_PATH="/node/${host}/${port}"
-export BLACKFISH_HOST="${host%.princeton.edu}"
-export BLACKFISH_PORT="${port}"
-export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
+export BLACKFISH_HOST="$host"
+export BLACKFISH_PORT="$port"
 export BLACKFISH_DEBUG=0
-export BLACKFISH_AUTH_TOKEN="${password}"
-printf "> BLACKFISH_BASE_PATH=${BLACKFISH_BASE_PATH}\n"
-printf "> BLACKFISH_HOST=${BLACKFISH_HOST}\n"
-printf "> BLACKFISH_PORT=${BLACKFISH_PORT}\n"
-printf "> BLACKFISH_HOME_DIR=${BLACKFISH_HOME_DIR}\n"
-printf "> BLACKFISH_DEBUG=${BLACKFISH_DEBUG}\n"
-printf "> BLACKFISH_AUTH_TOKEN=${BLACKFISH_AUTH_TOKEN}\n\n"
-blackfish init --auto \
-  --app-dir $HOME/.blackfish-ondemand \
+export BLACKFISH_AUTH_TOKEN="$password"
+
+launch_status "Initializing Blackfish data and default profile"
+"$BLACKFISH_EXECUTABLE" init --auto \
+  --app-dir "$BLACKFISH_HOME_DIR" \
   --schema slurm \
   --host localhost \
-  --user $USER \
-  --home-dir $HOME/.blackfish-ondemand \
-  --cache-dir /scratch/gpfs/DDSS/.blackfish
-printf "done.\n"
+  --user "$USER" \
+  --home-dir "$BLACKFISH_HOME_DIR" \
+  --cache-dir "$cache_dir" </dev/null
 
-printf "Starting Blackfish at: $(date)\n"
-set -x
-blackfish start
+# Some Blackfish releases report profile setup errors without a nonzero exit.
+"$BLACKFISH_EXECUTABLE" profile show </dev/null || launch_fail "No usable default profile was created"
+
+launch_status "Starting Blackfish server"
+"$BLACKFISH_EXECUTABLE" start

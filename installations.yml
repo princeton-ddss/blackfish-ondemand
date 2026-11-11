@@ -1,0 +1,12 @@
+---
+# Administrator-managed installations, readable on every Della node.
+# Provision this installation before deploying the app (see README.md).
+default: "1.0.0"
+versions:
+  "1.0.0":
+    executable: "/scratch/gpfs/DDSS/.blackfish/envs/1.0.0/bin/blackfish"
+    modules: ["anaconda3/2024.6"]
+# To use a module instead, replace an entry with:
+#   "1.0.0":
+#     executable: "blackfish"
+#     modules: ["blackfish/1.0.0"]

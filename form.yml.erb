@@ -1,15 +1,38 @@
-# ~/ondemand/dev/blackfish/form.yml
+<%
+require 'json'
+require root.join('lib/installations').to_s
+installations = BlackfishInstallations.load(root)
+%>
 ---
 cluster: "della-vis2"
 form:
   - bc_num_hours
+  - blackfish_version
+  - home_dir
   - cache_dir
 attributes:
   bc_num_hours:
     value: 1
     label: "Duration"
     help: "Time in hours to run the server for."
+  blackfish_version:
+    widget: select
+    label: "Blackfish Version"
+    value: <%= installations.fetch('default').to_json %>
+    options:
+<% installations.fetch('versions').each_key do |version| %>
+      - <%= [version, version].to_json %>
+<% end %>
+    help: "Choose a shared installation. When switching versions, use a separate home directory to avoid incompatible database migrations."
+  home_dir:
+    widget: text_field
+    value: <%= File.join(Dir.home, '.blackfish-ondemand').to_json %>
+    label: "Blackfish Home Directory"
+    required: true
+    help: "Absolute path for your database, settings, and default profile's working files. Created if needed. Use a private directory; existing profiles are preserved."
   cache_dir:
+    widget: text_field
     value: "/scratch/gpfs/DDSS/.blackfish"
     label: "Cache Directory"
-    help: "Location to look for shared model and image file."
+    required: true
+    help: "Existing directory containing shared models and images. Used when creating the default profile; change an existing profile's cache in Blackfish."

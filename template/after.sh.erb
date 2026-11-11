@@ -1,10 +1,22 @@
-# Wait for the Blackfish server to start
-printf "Waiting for Blackfish server to open port ${port}...\n"
-if wait_until_port_used "${host}:${port}" 120; then
-  printf "Blackfish server listening on port ${port}!\n"
-else
-  printf "Timed out waiting for Blackfish server to open port ${port}!\n"
-  pkill -P ${SCRIPT_PID}
-  clean_up 1
-fi
-sleep 2
+#!/usr/bin/env bash
+
+# Poll in short intervals so failed initialization is reported immediately.
+# This hook runs in the wrapper, concurrently with script.sh.
+deadline=$((SECONDS + 120))
+while ((SECONDS < deadline)); do
+  if ! kill -0 "$SCRIPT_PID" 2>/dev/null; then
+    launch_status "Failed: Blackfish exited before becoming ready. See output.log for details."
+    clean_up 1
+    exit 1
+  fi
+  if curl --noproxy '*' --silent --fail --connect-timeout 1 --max-time 2 \
+      --output /dev/null "http://${host}:${port}/node/${host}/${port}/login"; then
+    launch_status "Ready: connect to Blackfish"
+    return 0
+  fi
+  sleep 1
+done
+
+launch_status "Failed: Blackfish did not respond within 120 seconds. See output.log for details."
+clean_up 1
+exit 1
