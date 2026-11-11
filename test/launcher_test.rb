@@ -20,6 +20,7 @@ class LauncherTest < Minitest::Test
     FileUtils.mkdir_p([@app, @stage, @app.join('lib')])
     FileUtils.cp(ROOT.join('lib/installations.rb'), @app.join('lib'))
     FileUtils.cp(ROOT.join('template/launch_helpers.sh'), @stage)
+    FileUtils.cp(ROOT.join('template/prepare_profile.py'), @stage)
     @executable = @directory.join('shared installation/blackfish')
     FileUtils.mkdir_p(@executable.dirname)
     @executable.write(<<~'RUBY')
@@ -42,13 +43,14 @@ class LauncherTest < Minitest::Test
       end
     RUBY
     @executable.chmod(0755)
-    @config = {'default' => '1.0.0a0', 'versions' => {
+    @cache = @directory.join('shared cache')
+    @config = {'cache_dir' => @cache.to_s, 'default' => '1.0.0a0', 'versions' => {
       '1.0.0a0' => {'executable' => @executable.to_s, 'modules' => []}
     }}
     save_config
     @context = OpenStruct.new(blackfish_version: '1.0.0a0',
-      home_dir: @directory.join('private home').to_s, cache_dir: @directory.join('shared cache').to_s)
-    FileUtils.mkdir_p(@context.cache_dir)
+      home_dir: @directory.join('private home').to_s)
+    FileUtils.mkdir_p(@cache)
     @environment = {'ARGUMENTS_FILE' => @stage.join('arguments.json').to_s,
       'START_FILE' => @stage.join('started').to_s, 'USER' => 'test-user'}
   end
@@ -105,20 +107,23 @@ class LauncherTest < Minitest::Test
     save_config
     form = YAML.safe_load(render('form.yml.erb'))
     assert_equal [['1.0.0a0', '1.0.0a0'], ['1.0.0', '1.0.0']], form['attributes']['blackfish_version']['options']
-    assert_equal File.join(Dir.home, '.blackfish-ondemand'), form['attributes']['home_dir']['value']
+    assert_equal File.join(Dir.home, '.blackfish'), form['attributes']['home_dir']['value']
     assert_includes form['form'], 'home_dir'
+    refute_includes form['form'], 'cache_dir'
+    refute form['attributes'].key?('cache_dir')
   end
 
   def test_arguments_with_spaces_and_shell_metacharacters_are_literal
     @context.home_dir = @directory.join('home $(touch INJECTED); "quote"').to_s
-    @context.cache_dir = @directory.join("cache `touch INJECTED` 'quote'").to_s
-    FileUtils.mkdir_p(@context.cache_dir)
+    @config['cache_dir'] = @directory.join("cache `touch INJECTED` 'quote' %value").to_s
+    FileUtils.mkdir_p(@config['cache_dir'])
+    save_config
     output, error, status = launcher
     assert status.success?, "#{output}\n#{error}"
     arguments = JSON.parse(@stage.join('arguments.json').read)
     assert_equal @context.home_dir, arguments[arguments.index('--app-dir') + 1]
-    assert_equal @context.home_dir, arguments[arguments.index('--home-dir') + 1]
-    assert_equal @context.cache_dir, arguments[arguments.index('--cache-dir') + 1]
+    assert_equal @context.home_dir, read_profiles.fetch('ondemand').fetch('home_dir')
+    assert_equal @config.fetch('cache_dir'), read_profiles.fetch('ondemand').fetch('cache_dir')
     assert_equal @context.home_dir, @stage.join('started').read
     refute @stage.join('INJECTED').exist?
     refute_includes output + error, '00000000000000000000000000000000'
@@ -145,7 +150,7 @@ class LauncherTest < Minitest::Test
     _, _, status = launcher('PROFILE_EXIT' => '1')
     refute status.success?
     refute @stage.join('started').exist?
-    assert_includes @stage.join('launch-status.txt').read, 'No usable default profile'
+    assert_includes @stage.join('launch-status.txt').read, 'No usable OnDemand profile'
   end
 
   def test_wrong_installed_version_fails_before_initialization
@@ -176,10 +181,102 @@ class LauncherTest < Minitest::Test
   end
 
   def test_nonexistent_cache_is_rejected
-    @context.cache_dir = @directory.join('missing cache').to_s
+    @config['cache_dir'] = @directory.join('missing cache').to_s
+    save_config
     _, _, status = launcher
     refute status.success?
     refute @stage.join('arguments.json').exist?
+  end
+
+  def read_profiles
+    script = "import configparser,json,sys; p=configparser.ConfigParser(); p.read(sys.argv[1]); print(json.dumps({s:dict(p[s]) for s in p.sections()}))"
+    output, error, status = Open3.capture3('python3', '-c', script, File.join(@context.home_dir, 'profiles.cfg'))
+    assert status.success?, error
+    JSON.parse(output)
+  end
+
+  def write_profiles(contents)
+    FileUtils.mkdir_p(@context.home_dir)
+    Pathname.new(@context.home_dir).join('profiles.cfg').write(contents)
+  end
+
+  def test_fresh_home_gets_ondemand_as_its_only_default_profile
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    profiles = read_profiles
+    assert_equal ['ondemand'], profiles.keys
+    assert_equal 'true', profiles.fetch('ondemand').fetch('default')
+    assert_equal 'slurm', profiles.fetch('ondemand').fetch('schema')
+    assert_equal 'localhost', profiles.fetch('ondemand').fetch('host')
+    assert_equal 'test-user', profiles.fetch('ondemand').fetch('user')
+    assert_equal @config.fetch('cache_dir'), profiles.fetch('ondemand').fetch('cache_dir')
+    assert_equal 0600, File.stat(File.join(@context.home_dir, 'profiles.cfg')).mode & 0777
+  end
+
+  def test_existing_explicit_default_and_configuration_are_preserved
+    existing = "; user comments\n[research]\nschema = local\nhome_dir = /custom\ncache_dir = /custom/cache\ndefault = yes\n"
+    write_profiles(existing)
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    assert File.read(File.join(@context.home_dir, 'profiles.cfg')).start_with?(existing)
+    profiles = read_profiles
+    assert_equal 'yes', profiles.fetch('research').fetch('default')
+    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+    assert_equal '/custom/cache', profiles.fetch('research').fetch('cache_dir')
+  end
+
+  def test_legacy_default_without_flag_is_preserved
+    write_profiles("[default]\nschema = local\nhome_dir = /custom\ncache_dir = /custom/cache\n")
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    profiles = read_profiles
+    assert_equal ['default', 'ondemand'], profiles.keys
+    refute profiles.fetch('default').key?('default')
+    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+  end
+
+  def test_first_profile_fallback_without_flag_is_preserved
+    write_profiles("[research]\nschema = local\nhome_dir = /custom\ncache_dir = /custom/cache\n")
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    profiles = read_profiles
+    assert_equal ['research', 'ondemand'], profiles.keys
+    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+  end
+
+  def test_existing_ondemand_profile_is_not_rewritten_or_revalidated_against_admin_cache
+    existing = "[ondemand]\nschema = slurm\nhost = localhost\nuser = test-user\nhome_dir = /different/home\ncache_dir = /different/cache\ndefault = true\n"
+    write_profiles(existing)
+    @config['cache_dir'] = @directory.join('unavailable admin cache').to_s
+    save_config
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
+    assert @stage.join('started').exist?
+  end
+
+  def test_repeated_launch_does_not_duplicate_ondemand
+    _, _, status = launcher
+    assert status.success?
+    existing = File.read(File.join(@context.home_dir, 'profiles.cfg'))
+    _, _, status = launcher
+    assert status.success?
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
+  end
+
+  def test_malformed_existing_profiles_fail_without_overwriting
+    existing = "not an INI file\n"
+    write_profiles(existing)
+    _, _, status = launcher
+    refute status.success?
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
+    refute @stage.join('started').exist?
+  end
+
+  def test_relative_admin_cache_is_rejected_during_staging
+    @config['cache_dir'] = 'relative/cache'
+    save_config
+    assert_raises(RuntimeError) { prepare_scripts }
   end
 
   def test_modules_are_loaded_before_executable_is_used

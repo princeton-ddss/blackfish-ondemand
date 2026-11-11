@@ -6,6 +6,10 @@ require 'pathname'
 module BlackfishInstallations
   def self.load(root)
     config = YAML.safe_load(Pathname.new(root).join('installations.yml').read)
+    cache_dir = config.fetch('cache_dir')
+    unless cache_dir.is_a?(String) && Pathname.new(cache_dir).absolute?
+      raise 'Configure an absolute shared cache_dir in installations.yml'
+    end
     versions = config.fetch('versions')
     raise 'Configure at least one shared Blackfish installation' unless versions.is_a?(Hash) && !versions.empty?
 
