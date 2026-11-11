@@ -11,7 +11,7 @@ while ((SECONDS < deadline)); do
   fi
   if curl --noproxy '*' --silent --fail --connect-timeout 1 --max-time 2 \
       --output /dev/null "http://${host}:${port}/node/${host}/${port}/login"; then
-    launch_status "Ready: connect to Blackfish"
+    launch_status "Ready!"
     return 0
   fi
   sleep 1

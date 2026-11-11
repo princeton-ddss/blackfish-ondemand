@@ -314,7 +314,7 @@ class LauncherTest < Minitest::Test
       source ./after.sh
     BASH
     assert status.success?, "#{output}\n#{error}"
-    assert_includes @stage.join('launch-status.txt').read, 'Ready:'
+    assert_includes @stage.join('launch-status.txt').read, 'Ready!'
     assert_includes @stage.join('probe.log').read, 'http://node.princeton.edu:8123/node/node.princeton.edu/8123/login'
   end
 
@@ -357,14 +357,14 @@ class LauncherTest < Minitest::Test
       source ./launch_helpers.sh
       launch_status 'Preparing data'
       launch_status 'Starting server'
-      launch_status 'Ready: connect to Blackfish'
+      launch_status 'Ready!'
     BASH
     assert status.success?, error
     lines = @stage.join('launch-status.txt').read.lines
     assert_equal 3, lines.length
     assert_match(/\A\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Preparing data\n/, lines.first)
     assert_includes lines[1], 'Starting server'
-    assert_includes lines.last, 'Ready: connect to Blackfish'
+    assert_includes lines.last, 'Ready!'
     assert_equal output, lines.join
   end
 
