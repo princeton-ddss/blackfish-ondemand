@@ -18,7 +18,9 @@ mkdir -p -- "$BLACKFISH_HOME_DIR"
 [[ -w "$BLACKFISH_HOME_DIR" && -x "$BLACKFISH_HOME_DIR" ]] || launch_fail "Home directory must be writable"
 
 export BLACKFISH_BASE_PATH="/node/${host}/${port}"
-export BLACKFISH_HOST="$host"
+# The proxy may resolve the node name to a different network interface than
+# the node itself. Listen on all IPv4 interfaces; keep the node name in URLs.
+export BLACKFISH_HOST="0.0.0.0"
 export BLACKFISH_PORT="$port"
 export BLACKFISH_DEBUG=0
 export BLACKFISH_AUTH_TOKEN="$password"

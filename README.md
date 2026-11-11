@@ -115,6 +115,13 @@ not print the authentication token or enable shell tracing. Treat session files
 and logs as private because the connection file and application output can contain
 credentials.
 
+The server binds to `0.0.0.0`, while proxy URLs retain the node hostname.
+This lets the proxy connect through any IPv4 interface on a node with multiple
+network interfaces. The readiness probe runs on the compute node; it cannot
+verify connectivity from the OnDemand host. If the session is ready but the
+Connect button reports a connection failure, check the OnDemand host's DNS,
+route, firewall, and proxy configuration for that node and port.
+
 ## Local validation
 
 With Ruby and Minitest available:

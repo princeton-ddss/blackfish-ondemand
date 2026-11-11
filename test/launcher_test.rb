@@ -35,6 +35,7 @@ class LauncherTest < Minitest::Test
         exit ENV.fetch('PROFILE_EXIT', '0').to_i
       when 'start'
         File.write(ENV.fetch('START_FILE'), ENV.fetch('BLACKFISH_HOME_DIR'))
+        File.write('server-environment.json', JSON.generate(ENV.to_h.select { |key, _| %w[BLACKFISH_HOST BLACKFISH_PORT BLACKFISH_BASE_PATH BLACKFISH_DEBUG].include?(key) }))
         exit ENV.fetch('START_EXIT', '0').to_i
       else
         abort "Unexpected command: #{ARGV.inspect}"
@@ -121,6 +122,16 @@ class LauncherTest < Minitest::Test
     assert_equal @context.home_dir, @stage.join('started').read
     refute @stage.join('INJECTED').exist?
     refute_includes output + error, '00000000000000000000000000000000'
+  end
+
+  def test_server_binds_all_interfaces_without_changing_proxy_path
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    server = JSON.parse(@stage.join('server-environment.json').read)
+    assert_equal '0.0.0.0', server.fetch('BLACKFISH_HOST')
+    assert_equal '8123', server.fetch('BLACKFISH_PORT')
+    assert_equal '/node/node.princeton.edu/8123', server.fetch('BLACKFISH_BASE_PATH')
+    assert_equal '0', server.fetch('BLACKFISH_DEBUG')
   end
 
   def test_init_failure_does_not_start_server
