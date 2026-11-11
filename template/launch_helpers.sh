@@ -4,11 +4,10 @@
 export BLACKFISH_STATUS_FILE="${PWD}/launch-status.txt"
 
 launch_status() {
-  local message="$1"
-  local temporary_file="${BLACKFISH_STATUS_FILE}.tmp.$$"
-  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$message"
-  printf '%s\n' "$message" > "$temporary_file" &&
-    mv -f -- "$temporary_file" "$BLACKFISH_STATUS_FILE"
+  local entry
+  printf -v entry '[%s] %s' "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+  printf '%s\n' "$entry"
+  printf '%s\n' "$entry" >> "$BLACKFISH_STATUS_FILE"
 }
 
 launch_fail() {

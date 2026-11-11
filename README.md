@@ -124,12 +124,16 @@ before making changes. A database migration can make downgrades incompatible.
 
 ## Launch feedback and troubleshooting
 
-The session card shows the most recently recorded launch step: loading the shared
-installation, allocating a port, preparing data, preparing the OnDemand profile and initializing data,
-starting the server, or ready/failed. Refresh the dashboard page for the latest
-step. Completed sessions show their last recorded step. Detailed timestamped
-progress and Blackfish output are in `output.log` in the session directory;
-`launch-status.txt` contains the current step.
+The session card shows timestamped launch steps in a scrollable log, including
+loading the installation, preparing the OnDemand profile, initializing data,
+starting the server, and ready/failed. Up to the latest 40 entries are shown;
+completed sessions retain that history. `launch-status.txt` contains the complete
+launch-step history. It updates when the session card is refreshed by OnDemand
+or the page is reloaded; this is not a continuously streamed log.
+
+Detailed Blackfish output remains in `output.log`, accessible through OnDemand's
+session-data link. The card displays only launcher progress, not raw Blackfish
+output, which can include authentication credentials.
 
 A connection is published only after the login page responds successfully over
 HTTP. The launcher detects an early server exit and stops waiting after roughly

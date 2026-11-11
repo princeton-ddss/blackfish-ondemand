@@ -15,7 +15,7 @@ templates with a fake shared installation, not a Della cluster session.
 | P2 | The selected cache directory was ignored; the home directory was fixed. | Let users select their app home; use the admin cache only to create a missing ondemand profile. Preserve existing profile configuration and default selection. |
 | P2 | User-supplied paths were unquoted. | Shell-escape template values and quote runtime arguments; validate the absolute user home and admin cache paths; check cache access only when creating the OnDemand profile. |
 | P2 | Startup used a port-only probe and could wait after the server had exited. | Check process liveness and HTTP readiness with a bounded deadline before publishing the connection. |
-| P2 | There was no app-specific feedback while launching. | Add timestamped steps to output.log and a status file displayed in the session card; retain the last step for completed sessions. |
+| P2 | There was no app-specific feedback while launching. | Append timestamped launch steps to output.log and launch-status.txt; display recent history in active and completed session cards. |
 | P2 | User Python packages could shadow the shared installation. | Retain PYTHONNOUSERSITE and clear inherited PYTHONPATH/PYTHONHOME. |
 
 ## Remaining limitations and deployment validation

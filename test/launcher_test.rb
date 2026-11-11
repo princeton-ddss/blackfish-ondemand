@@ -143,7 +143,7 @@ class LauncherTest < Minitest::Test
     _, _, status = launcher('INIT_EXIT' => '1')
     refute status.success?
     refute @stage.join('started').exist?
-    assert_match(/^Failed:/, @stage.join('launch-status.txt').read)
+    assert_match(/^\[.*\] Failed:/, @stage.join('launch-status.txt').read)
   end
 
   def test_profile_setup_failure_despite_successful_init_does_not_start_server
@@ -352,6 +352,34 @@ class LauncherTest < Minitest::Test
     end
   end
 
+  def test_launch_status_preserves_timestamped_history_and_matches_output
+    output, error, status = run_shell(<<~'BASH')
+      source ./launch_helpers.sh
+      launch_status 'Preparing data'
+      launch_status 'Starting server'
+      launch_status 'Ready: connect to Blackfish'
+    BASH
+    assert status.success?, error
+    lines = @stage.join('launch-status.txt').read.lines
+    assert_equal 3, lines.length
+    assert_match(/\A\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] Preparing data\n/, lines.first)
+    assert_includes lines[1], 'Starting server'
+    assert_includes lines.last, 'Ready: connect to Blackfish'
+    assert_equal output, lines.join
+  end
+
+  def test_completed_card_preserves_recent_log_lines_and_escapes_them
+    staged_root = @stage
+    lines = (1..45).map { |number| "[2026-11-11 15:41:18] Step #{number} <Blackfish>\n" }
+    stage_log = @stage.join('launch-status.txt')
+    stage_log.write(lines.join)
+    html = ERB.new(ROOT.join('completed.html.erb').read).result(binding)
+    refute_includes html, 'Step 5 '
+    assert_includes html, 'Step 6 &lt;Blackfish&gt;'
+    assert_includes html, 'Step 45 &lt;Blackfish&gt;'
+    refute_includes html, '<Blackfish>'
+  end
+
   def test_status_html_is_escaped
     staged_root = @stage
     @stage.join('launch-status.txt').write('<script>alert(1)</script>')
@@ -370,7 +398,10 @@ class LauncherTest < Minitest::Test
     assert_includes template.result(view.instance_eval { binding }), 'Waiting for a cluster node'
     view.define_singleton_method(:queued?) { false }
     stage.join('launch-status.txt').write('Starting <Blackfish>')
-    assert_includes template.result(view.instance_eval { binding }), 'Starting &lt;Blackfish&gt;'
+    html = template.result(view.instance_eval { binding })
+    assert_includes html, 'Starting &lt;Blackfish&gt;'
+    refute_includes html, 'Refresh this page'
+    assert_includes html, 'role="log"'
     view.define_singleton_method(:completed?) { true }
     assert_empty template.result(view.instance_eval { binding }).strip
   end
