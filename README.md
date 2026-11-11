@@ -45,6 +45,7 @@ The catalog already supports environment modules. Once a site module is availabl
 an entry can use the executable provided by that module:
 
 ```yaml
+cache_dir: "/scratch/gpfs/DDSS/.blackfish"
 default: "1.0.0"
 versions:
   "1.0.0":
@@ -87,21 +88,44 @@ after changing the catalog if choices do not refresh.
 - **Duration:** requested server lifetime in hours.
 - **Blackfish Version:** one of the exact shared versions in `installations.yml`.
 - **Blackfish Home Directory:** a private absolute path for the database, settings,
-  and the initial default profile's working files. Defaults to the launching
-  user's `~/.blackfish-ondemand`; created with private permissions if missing.
-- **Cache Directory:** an existing readable absolute path containing shared model
-  and image files. Defaults to `/scratch/gpfs/DDSS/.blackfish`.
+  and OnDemand working files. Defaults to the launching user's `~/.blackfish`;
+  created with private permissions if missing. Existing form values may still
+  remember `~/.blackfish-ondemand`; no existing data is moved automatically.
 
-The app passes both selected directories to `blackfish init`. Existing profiles
-are preserved: their cache and working directory are not overwritten by the form.
-Change those settings in Blackfish or choose a new home directory to create a new
-default profile. Run one session per home directory. Use separate home directories
-when switching versions; database migrations can make downgrades incompatible.
+## OnDemand profile
+
+Administrators set the shared cache directory with the top-level `cache_dir` in
+`installations.yml`. Users do not select a cache directory in the launch form.
+A Python 3 interpreter with the standard library must be available on the job's
+PATH; the configured Anaconda module supplies one for the initial installation.
+
+Before initialization, the launcher adds a Slurm profile named `ondemand` if it
+is missing, using `localhost`, the current user, the selected home directory, and
+the administrator's shared cache. It becomes the default only in a home with no
+existing profiles. Existing profiles, their settings, and the default selection
+are preserved, including legacy defaults without an explicit default flag.
+Users can create and select other profiles through Blackfish or its CLI.
+
+The admin cache must exist and be readable when creating `ondemand`. Once that
+profile exists, relaunching does not reset its cache or other settings, and it
+is not revalidated against the administrator's current cache setting. Changing
+`cache_dir` affects newly created OnDemand profiles; manage existing profiles in
+Blackfish. Old cached `cache_dir` form input is ignored by the launcher.
+
+The profile helper appends only the missing INI section, preserving other file
+contents. Blackfish then bootstraps its application data and validates both the
+OnDemand profile and resolved default before starting the server. Malformed
+profile configuration stops startup instead of being replaced.
+
+Run one session per home directory. Use separate home directories when switching
+versions: Blackfish currently runs migrations and records the running version,
+but does not compare it with the home directory's previous application version
+before making changes. A database migration can make downgrades incompatible.
 
 ## Launch feedback and troubleshooting
 
 The session card shows the most recently recorded launch step: loading the shared
-installation, allocating a port, preparing data, initializing the default profile,
+installation, allocating a port, preparing data, preparing the OnDemand profile and initializing data,
 starting the server, or ready/failed. Refresh the dashboard page for the latest
 step. Completed sessions show their last recorded step. Detailed timestamped
 progress and Blackfish output are in `output.log` in the session directory;
@@ -131,8 +155,9 @@ ruby test/launcher_test.rb
 ```
 
 Tests render the real templates and run them with a fake shared executable. They
-cover version selection, module loading, literal path handling, setup failures,
-profile validation, HTTP readiness, timeout, early exit, and escaped status HTML.
+cover version selection, module loading, literal path handling, named profile
+creation, preservation of existing defaults and settings, setup failures, HTTP
+readiness, timeout, early exit, and escaped status HTML.
 Actual Slurm submission, modulefiles, proxy login, and shared cache permissions
 must be verified with an Open OnDemand dev session on Della.
 
