@@ -61,7 +61,13 @@ class LauncherTest < Minitest::Test
   end
 
   def render(file)
-    root = @app
+    # Open OnDemand sets the template filename and renders forms with no binding.
+    # Do not leak test locals (such as root/session/context) into that context.
+    if file == 'form.yml.erb'
+      template = ERB.new(ROOT.join(file).read, trim_mode: '-')
+      template.filename = @app.join('form.yml.erb').to_s
+      return template.result(nil)
+    end
     context = @context
     session = OpenStruct.new(app: OpenStruct.new(root: @app))
     ERB.new(ROOT.join(file).read, trim_mode: '-').result(binding)
