@@ -1,7 +1,9 @@
 # Blackfish for Open OnDemand
 
-Launch a Blackfish server on a Della visualization node and connect through the
-Open OnDemand proxy. Sessions use administrator-managed shared installations.
+The official Open OnDemand application for Blackfish-AI. It launches a Blackfish
+server on a login node with minimal resources. Users authenticate and interact with
+the server through the OOD proxy and Blackfish UI in their browser. Sessions use
+administrator-managed shared installations.
 
 ## Shared installation setup
 
