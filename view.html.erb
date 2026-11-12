@@ -1,5 +1,6 @@
-<form action="/node/<%= host %>/<%= port %>/api/login?token=<%= password %>" method="post" target="_blank">
+<% require 'erb'; require 'uri' %>
+<form action="<%= ERB::Util.html_escape("/node/#{host}/#{port}/api/login?token=#{URI.encode_www_form_component(password)}") %>" method="post" target="_blank" rel="noopener noreferrer">
   <button class="btn btn-primary" type="submit">
-    <i class="fa fa-cogs"></i> Connect to Blackfish
+    <i class="fa fa-cogs" aria-hidden="true"></i> Connect to Blackfish
   </button>
 </form>

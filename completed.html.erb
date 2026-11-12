@@ -1,0 +1,8 @@
+<% require 'erb' %>
+<% status_path = staged_root.join('launch-status.txt') %>
+<p><strong>Launch log (session ended):</strong></p>
+<% if status_path.file? %>
+<pre class="pre-scrollable" role="log" aria-label="Blackfish launch log"><%= ERB::Util.html_escape(status_path.readlines.last(40).join.strip) %></pre>
+<% else %>
+<p>No launch progress was recorded.</p>
+<% end %>

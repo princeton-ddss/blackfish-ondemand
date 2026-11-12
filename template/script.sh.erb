@@ -1,30 +1,50 @@
 #!/usr/bin/env bash
+<%
+require 'shellwords'
+require session.app.root.join('lib/installations').to_s
+installations = BlackfishInstallations.load(session.app.root)
+%>
 
-printf "Initializing Blackfish...\n"
-if [ ! -d "${HOME}/.blackfish-ondemand" ]; then
-  mkdir -p "${HOME}/.blackfish-ondemand"
-fi
+set +x
+set -eE -o pipefail
+umask 077
+source "$(dirname "${BASH_SOURCE[0]}")/launch_helpers.sh"
+trap 'launch_fail "Blackfish initialization or server process exited with an error"' ERR
+
+export BLACKFISH_HOME_DIR=<%= Shellwords.escape(context.home_dir.to_s) %>
+cache_dir=<%= Shellwords.escape(installations.fetch('cache_dir')) %>
+[[ "$BLACKFISH_HOME_DIR" == /* ]] || launch_fail "Home directory must be an absolute path"
+
+launch_status "Preparing Blackfish home directory"
+mkdir -p -- "$BLACKFISH_HOME_DIR"
+[[ -w "$BLACKFISH_HOME_DIR" && -x "$BLACKFISH_HOME_DIR" ]] || launch_fail "Home directory must be writable"
+
 export BLACKFISH_BASE_PATH="/node/${host}/${port}"
-export BLACKFISH_HOST="${host%.princeton.edu}"
-export BLACKFISH_PORT="${port}"
-export BLACKFISH_HOME_DIR="$HOME/.blackfish-ondemand"
+# The proxy may resolve the node name to a different network interface than
+# the node itself. Listen on all IPv4 interfaces; keep the node name in URLs.
+export BLACKFISH_HOST="0.0.0.0"
+export BLACKFISH_PORT="$port"
 export BLACKFISH_DEBUG=0
-export BLACKFISH_AUTH_TOKEN="${password}"
-printf "> BLACKFISH_BASE_PATH=${BLACKFISH_BASE_PATH}\n"
-printf "> BLACKFISH_HOST=${BLACKFISH_HOST}\n"
-printf "> BLACKFISH_PORT=${BLACKFISH_PORT}\n"
-printf "> BLACKFISH_HOME_DIR=${BLACKFISH_HOME_DIR}\n"
-printf "> BLACKFISH_DEBUG=${BLACKFISH_DEBUG}\n"
-printf "> BLACKFISH_AUTH_TOKEN=${BLACKFISH_AUTH_TOKEN}\n\n"
-blackfish init --auto \
-  --app-dir $HOME/.blackfish-ondemand \
-  --schema slurm \
-  --host localhost \
-  --user $USER \
-  --home-dir $HOME/.blackfish-ondemand \
-  --cache-dir /scratch/gpfs/DDSS/.blackfish
-printf "done.\n"
+export BLACKFISH_AUTH_TOKEN="$password"
 
-printf "Starting Blackfish at: $(date)\n"
-set -x
-blackfish start
+launch_status "Checking Blackfish profiles"
+if python3 "$(dirname "${BASH_SOURCE[0]}")/prepare_profile.py" \
+    --home-dir "$BLACKFISH_HOME_DIR" \
+    --cache-dir "$cache_dir" \
+    --user "$USER"; then
+  :
+else
+  profile_status=$?
+  if [[ "$profile_status" == 2 ]]; then
+    launch_fail "Cannot create Default: the administrator's cache directory is missing or unreadable: ${cache_dir}"
+  fi
+  launch_fail "Could not read or prepare Blackfish profiles; check profiles.cfg and home directory permissions"
+fi
+
+launch_status "Initializing Blackfish data"
+"$BLACKFISH_EXECUTABLE" init --app-dir "$BLACKFISH_HOME_DIR" </dev/null || launch_fail "Could not initialize Blackfish application data"
+
+"$BLACKFISH_EXECUTABLE" profile show </dev/null || launch_fail "No usable default profile is available"
+
+launch_status "Starting Blackfish server"
+"$BLACKFISH_EXECUTABLE" start || launch_fail "Blackfish server exited with an error"

@@ -1,41 +1,54 @@
 #!/usr/bin/env bash
+<%
+require 'shellwords'
+require session.app.root.join('lib/installations').to_s
+installations = BlackfishInstallations.load(session.app.root)
+version = context.blackfish_version.to_s
+installation = installations.fetch('versions').fetch(version) do
+  raise "Blackfish version #{version.inspect} is unavailable. Relaunch and select a listed version."
+end
+%>
 
-# Export the module function if it exists
-[[ $(type -t module) == "function" ]] && export -f module
-[[ x$(type -t module) != "xfunction" && -e /etc/profile.d/modules.sh ]] && source /etc/profile.d/modules.sh
+# Do not trace credentials, even if tracing was enabled by the login environment.
+set +x
+umask 077
+source "$(dirname "${BASH_SOURCE[0]}")/launch_helpers.sh" || exit 1
+launch_status "Loading shared Blackfish <%= version %>"
 
-if [[ "${PWD}" == */dev/blackfish-ondemand* ]]; then
-  export STAGED_ENV="dev"
-  printf "Deploying development app (STAGED_ENV=${STAGED_ENV}).\n"
-else
-  export STAGED_ENV="share"
-  printf "Deploying production app (STAGED_ENV=${STAGED_ENV}).\n"
-fi
-
-export APP_DIR="/home/cs7101/ondemand/${STAGED_ENV}/blackfish-ondemand"
-export BLACKFISH_VERSION=$(cat "${APP_DIR}/.blackfish-version")
-
-printf "Loading required modules...\n"
-module purge
-module load anaconda3/2024.6
-
-printf "Setting up user environment...\n"
-# Ignore ~/.local so packages installed with `pip install --user` can't shadow
-# the app's environment, both for pip below and for `blackfish start`.
+# Keep user Python packages from shadowing the administrator's installation.
 export PYTHONNOUSERSITE=1
-if ! conda env list | grep -q "^blackfish-ondemand "; then
-  conda create --name blackfish-ondemand python=3.12 --yes
+export PYTHONUNBUFFERED=1
+unset PYTHONPATH PYTHONHOME
+
+<% unless installation.fetch('modules', []).empty? %>
+if ! type module >/dev/null 2>&1; then
+  if [[ -r /etc/profile.d/modules.sh ]]; then
+    source /etc/profile.d/modules.sh || launch_fail "Could not initialize environment modules"
+  else
+    launch_fail "Environment modules are unavailable"
+  fi
 fi
-conda activate blackfish-ondemand
+module purge || launch_fail "Could not reset environment modules"
+module load <%= installation.fetch('modules').map { |name| Shellwords.escape(name) }.join(' ') %> || launch_fail "Could not load Blackfish modules"
+[[ $(type -t module) != function ]] || export -f module
+<% end %>
 
-printf "Installing blackfish-ai${BLACKFISH_VERSION}...\n"
-python -m pip install --upgrade "blackfish-ai${BLACKFISH_VERSION}"
-printf "done.\n"
+export BLACKFISH_EXECUTABLE=<%= Shellwords.escape(installation.fetch('executable')) %>
+export BLACKFISH_SELECTED_VERSION=<%= Shellwords.escape(version) %>
+BLACKFISH_EXECUTABLE=$(command -v "$BLACKFISH_EXECUTABLE") || launch_fail "The selected shared installation is unavailable; contact the app administrator"
+[[ -x "$BLACKFISH_EXECUTABLE" ]] || launch_fail "The selected Blackfish executable cannot be run"
+if ! installed_version=$("$BLACKFISH_EXECUTABLE" version); then
+  launch_fail "Could not query the installed Blackfish version"
+fi
+if [[ "$(printf '%s\n' "$installed_version" | tail -n 1)" != "blackfish-ai ${BLACKFISH_SELECTED_VERSION}" ]]; then
+  launch_fail "The shared installation does not match the selected version"
+fi
 
-printf "Finding an available port..."
-port=$(find_port)
-printf "done. Using port ${port}\n"
-
-printf "Generating password..."
-export password="$(create_passwd 16)"
-printf "done.\n"
+launch_status "Allocating a server port"
+command -v curl >/dev/null 2>&1 || launch_fail "curl is required to check server readiness"
+port=$(find_port) || launch_fail "Could not allocate a port"
+[[ "$port" =~ ^[0-9]+$ ]] || launch_fail "Invalid allocated port"
+export port
+export password
+password=$(create_passwd 32) || launch_fail "Could not generate an authentication token"
+[[ "$password" =~ ^[a-zA-Z0-9]{32}$ ]] || launch_fail "Invalid authentication token"
