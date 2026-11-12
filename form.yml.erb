@@ -29,4 +29,4 @@ attributes:
     value: <%= File.join(Dir.home, '.blackfish').to_json %>
     label: "Blackfish Home Directory"
     required: true
-    help: "Absolute path for your database, settings, and OnDemand working files. An ondemand profile is added if missing; existing profiles and your default selection are preserved."
+    help: "Absolute path for your database, settings, and the initial profile's working files. A Default profile is created only if no profiles exist; existing profiles and your default selection are preserved."

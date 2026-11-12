@@ -27,7 +27,7 @@ export BLACKFISH_PORT="$port"
 export BLACKFISH_DEBUG=0
 export BLACKFISH_AUTH_TOKEN="$password"
 
-launch_status "Preparing OnDemand profile"
+launch_status "Checking Blackfish profiles"
 python3 "$(dirname "${BASH_SOURCE[0]}")/prepare_profile.py" \
   --home-dir "$BLACKFISH_HOME_DIR" \
   --cache-dir "$cache_dir" \
@@ -36,7 +36,6 @@ python3 "$(dirname "${BASH_SOURCE[0]}")/prepare_profile.py" \
 launch_status "Initializing Blackfish data"
 "$BLACKFISH_EXECUTABLE" init --app-dir "$BLACKFISH_HOME_DIR" </dev/null
 
-"$BLACKFISH_EXECUTABLE" profile show --name ondemand </dev/null || launch_fail "No usable OnDemand profile is available"
 "$BLACKFISH_EXECUTABLE" profile show </dev/null || launch_fail "No usable default profile is available"
 
 launch_status "Starting Blackfish server"

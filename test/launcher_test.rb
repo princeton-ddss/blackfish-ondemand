@@ -122,8 +122,8 @@ class LauncherTest < Minitest::Test
     assert status.success?, "#{output}\n#{error}"
     arguments = JSON.parse(@stage.join('arguments.json').read)
     assert_equal @context.home_dir, arguments[arguments.index('--app-dir') + 1]
-    assert_equal @context.home_dir, read_profiles.fetch('ondemand').fetch('home_dir')
-    assert_equal @config.fetch('cache_dir'), read_profiles.fetch('ondemand').fetch('cache_dir')
+    assert_equal @context.home_dir, read_profiles.fetch('Default').fetch('home_dir')
+    assert_equal @config.fetch('cache_dir'), read_profiles.fetch('Default').fetch('cache_dir')
     assert_equal @context.home_dir, @stage.join('started').read
     refute @stage.join('INJECTED').exist?
     refute_includes output + error, '00000000000000000000000000000000'
@@ -150,7 +150,7 @@ class LauncherTest < Minitest::Test
     _, _, status = launcher('PROFILE_EXIT' => '1')
     refute status.success?
     refute @stage.join('started').exist?
-    assert_includes @stage.join('launch-status.txt').read, 'No usable OnDemand profile'
+    assert_includes @stage.join('launch-status.txt').read, 'No usable default profile'
   end
 
   def test_wrong_installed_version_fails_before_initialization
@@ -200,16 +200,16 @@ class LauncherTest < Minitest::Test
     Pathname.new(@context.home_dir).join('profiles.cfg').write(contents)
   end
 
-  def test_fresh_home_gets_ondemand_as_its_only_default_profile
+  def test_fresh_home_creates_only_the_initial_profile
     output, error, status = launcher
     assert status.success?, "#{output}\n#{error}"
     profiles = read_profiles
-    assert_equal ['ondemand'], profiles.keys
-    assert_equal 'true', profiles.fetch('ondemand').fetch('default')
-    assert_equal 'slurm', profiles.fetch('ondemand').fetch('schema')
-    assert_equal 'localhost', profiles.fetch('ondemand').fetch('host')
-    assert_equal 'test-user', profiles.fetch('ondemand').fetch('user')
-    assert_equal @config.fetch('cache_dir'), profiles.fetch('ondemand').fetch('cache_dir')
+    assert_equal ['Default'], profiles.keys
+    assert_equal 'true', profiles.fetch('Default').fetch('default')
+    assert_equal 'slurm', profiles.fetch('Default').fetch('schema')
+    assert_equal 'localhost', profiles.fetch('Default').fetch('host')
+    assert_equal 'test-user', profiles.fetch('Default').fetch('user')
+    assert_equal @config.fetch('cache_dir'), profiles.fetch('Default').fetch('cache_dir')
     assert_equal 0600, File.stat(File.join(@context.home_dir, 'profiles.cfg')).mode & 0777
   end
 
@@ -218,10 +218,10 @@ class LauncherTest < Minitest::Test
     write_profiles(existing)
     output, error, status = launcher
     assert status.success?, "#{output}\n#{error}"
-    assert File.read(File.join(@context.home_dir, 'profiles.cfg')).start_with?(existing)
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
     profiles = read_profiles
     assert_equal 'yes', profiles.fetch('research').fetch('default')
-    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+    refute profiles.key?('Default')
     assert_equal '/custom/cache', profiles.fetch('research').fetch('cache_dir')
   end
 
@@ -230,9 +230,9 @@ class LauncherTest < Minitest::Test
     output, error, status = launcher
     assert status.success?, "#{output}\n#{error}"
     profiles = read_profiles
-    assert_equal ['default', 'ondemand'], profiles.keys
+    assert_equal ['default'], profiles.keys
     refute profiles.fetch('default').key?('default')
-    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+    refute profiles.key?('Default')
   end
 
   def test_first_profile_fallback_without_flag_is_preserved
@@ -240,8 +240,8 @@ class LauncherTest < Minitest::Test
     output, error, status = launcher
     assert status.success?, "#{output}\n#{error}"
     profiles = read_profiles
-    assert_equal ['research', 'ondemand'], profiles.keys
-    assert_equal 'false', profiles.fetch('ondemand').fetch('default')
+    assert_equal ['research'], profiles.keys
+    refute profiles.key?('Default')
   end
 
   def test_existing_ondemand_profile_is_not_rewritten_or_revalidated_against_admin_cache
@@ -255,7 +255,27 @@ class LauncherTest < Minitest::Test
     assert @stage.join('started').exist?
   end
 
-  def test_repeated_launch_does_not_duplicate_ondemand
+  def test_existing_custom_profile_skips_admin_cache_validation_and_adds_nothing
+    existing = "[research]\nschema = local\nhome_dir = /custom\ncache_dir = /custom/cache\ndefault = true\n"
+    write_profiles(existing)
+    @config['cache_dir'] = @directory.join('missing admin cache').to_s
+    save_config
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
+    assert_equal ['research'], read_profiles.keys
+  end
+
+  def test_comments_without_profiles_create_initial_profile
+    existing = "; first launch\n"
+    write_profiles(existing)
+    output, error, status = launcher
+    assert status.success?, "#{output}\n#{error}"
+    assert File.read(File.join(@context.home_dir, 'profiles.cfg')).start_with?(existing)
+    assert_equal ['Default'], read_profiles.keys
+  end
+
+  def test_repeated_launch_does_not_duplicate_initial_profile
     _, _, status = launcher
     assert status.success?
     existing = File.read(File.join(@context.home_dir, 'profiles.cfg'))

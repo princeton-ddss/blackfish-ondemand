@@ -88,34 +88,34 @@ after changing the catalog if choices do not refresh.
 - **Duration:** requested server lifetime in hours.
 - **Blackfish Version:** one of the exact shared versions in `installations.yml`.
 - **Blackfish Home Directory:** a private absolute path for the database, settings,
-  and OnDemand working files. Defaults to the launching user's `~/.blackfish`;
+  and the initial profile's working files. Defaults to the launching user's `~/.blackfish`;
   created with private permissions if missing. Existing form values may still
   remember `~/.blackfish-ondemand`; no existing data is moved automatically.
 
-## OnDemand profile
+## Initial profile
 
 Administrators set the shared cache directory with the top-level `cache_dir` in
 `installations.yml`. Users do not select a cache directory in the launch form.
 A Python 3 interpreter with the standard library must be available on the job's
 PATH; the configured Anaconda module supplies one for the initial installation.
 
-Before initialization, the launcher adds a Slurm profile named `ondemand` if it
-is missing, using `localhost`, the current user, the selected home directory, and
-the administrator's shared cache. It becomes the default only in a home with no
-existing profiles. Existing profiles, their settings, and the default selection
-are preserved, including legacy defaults without an explicit default flag.
-Users can create and select other profiles through Blackfish or its CLI.
+Before initialization, the launcher checks the selected home's `profiles.cfg`.
+If any profiles exist, it leaves them and their default selection unchanged.
+It does not add, rename, or replace a profile, including any `ondemand` profiles
+created by earlier versions of this launcher.
 
-The admin cache must exist and be readable when creating `ondemand`. Once that
-profile exists, relaunching does not reset its cache or other settings, and it
-is not revalidated against the administrator's current cache setting. Changing
-`cache_dir` affects newly created OnDemand profiles; manage existing profiles in
-Blackfish. Old cached `cache_dir` form input is ignored by the launcher.
+Only when no profiles exist, the launcher creates a Slurm profile named `Default`
+with `localhost`, the current user, the selected home directory, and the admin
+cache. It marks that profile as the default. The admin cache must exist and be
+readable for this initial setup; existing profiles do not depend on its current
+value. Users can create, edit, and select other profiles through Blackfish or
+its CLI. Old cached `cache_dir` form input is ignored by the launcher.
 
-The profile helper appends only the missing INI section, preserving other file
-contents. Blackfish then bootstraps its application data and validates both the
-OnDemand profile and resolved default before starting the server. Malformed
-profile configuration stops startup instead of being replaced.
+The profile helper preserves comments and existing configuration. Blackfish then
+bootstraps its application data and validates the resolved default before starting
+the server. Malformed profile configuration stops startup instead of being
+replaced. Changing the admin cache affects initial profile creation in homes
+without profiles; it does not update existing profile settings.
 
 Run one session per home directory. Use separate home directories when switching
 versions: Blackfish currently runs migrations and records the running version,
@@ -125,7 +125,7 @@ before making changes. A database migration can make downgrades incompatible.
 ## Launch feedback and troubleshooting
 
 The session card shows timestamped launch steps in a scrollable log, including
-loading the installation, preparing the OnDemand profile, initializing data,
+loading the installation, checking profiles, initializing data,
 starting the server, and ready/failed. Up to the latest 40 entries are shown;
 completed sessions retain that history. `launch-status.txt` contains the complete
 launch-step history. It updates when the session card is refreshed by OnDemand
@@ -159,8 +159,8 @@ ruby test/launcher_test.rb
 ```
 
 Tests render the real templates and run them with a fake shared executable. They
-cover version selection, module loading, literal path handling, named profile
-creation, preservation of existing defaults and settings, setup failures, HTTP
+cover version selection, module loading, literal path handling, first-time profile
+creation, preservation of existing profiles, defaults, and settings, setup failures, HTTP
 readiness, timeout, early exit, and escaped status HTML.
 Actual Slurm submission, modulefiles, proxy login, and shared cache permissions
 must be verified with an Open OnDemand dev session on Della.

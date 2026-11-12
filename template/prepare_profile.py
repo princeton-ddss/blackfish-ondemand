@@ -1,9 +1,8 @@
-"""Add the OnDemand Slurm profile without replacing the user's configuration.
+"""Create a Default Slurm profile only when the user has no profiles.
 
-Blackfish's noninteractive `init` only creates a profile named `default`.
-Its profiles.cfg is an INI file; append our named entry before calling init so
-Blackfish bootstraps its data without creating or replacing other profiles.
-Only Python's standard library is needed, independently of Blackfish's Python.
+Blackfish's noninteractive `init` names its generated profile `default`.
+Create the requested `Default` entry before init, preserving existing profile
+configuration. Only Python's standard library is needed.
 """
 
 import argparse
@@ -27,28 +26,26 @@ def ensure_profile(home_dir, cache_dir, user):
         existing = file.read()
         profiles = configparser.ConfigParser()
         profiles.read_string(existing)
-        if profiles.has_section("ondemand"):
-            print("OnDemand profile already exists; preserving its settings.")
+        if profiles.sections():
+            print("Existing profiles found; preserving their settings and default selection.")
             return
 
-        # The admin cache is only required when creating the OnDemand profile.
+        # The admin cache is only required for first-time profile creation.
         cache = Path(cache_dir)
         if not cache.is_absolute():
             raise ValueError("Admin cache directory must be an absolute path")
         if not cache.is_dir() or not os.access(cache, os.R_OK | os.X_OK):
             raise ValueError("Admin cache directory must exist and be readable")
 
-        # Blackfish falls back to a section named `default`, then the first
-        # section, when none has an explicit default flag. Append rather than
-        # rewriting, so those selections (and comments/formatting) stay intact.
+        # Preserve comments or INI defaults in an otherwise empty profile file.
         entry = configparser.ConfigParser()
-        entry["ondemand"] = {
+        entry["Default"] = {
             "schema": "slurm",
             "host": "localhost",
             "user": user.replace("%", "%%"),
             "home_dir": str(home).replace("%", "%%"),
             "cache_dir": str(cache).replace("%", "%%"),
-            "default": "false" if profiles.sections() else "true",
+            "default": "true",
         }
         buffer = io.StringIO()
         entry.write(buffer)
@@ -56,7 +53,7 @@ def ensure_profile(home_dir, cache_dir, user):
         if existing and not existing.endswith("\n"):
             file.write("\n")
         file.write("\n" + buffer.getvalue())
-        print("Created OnDemand profile using the administrator's shared cache.")
+        print("Created profile 'Default' using the administrator's shared cache.")
 
 
 if __name__ == "__main__":
@@ -68,4 +65,4 @@ if __name__ == "__main__":
     try:
         ensure_profile(args.home_dir, args.cache_dir, args.user)
     except (OSError, ValueError, configparser.Error) as error:
-        parser.exit(1, "Could not prepare OnDemand profile: {}\n".format(error))
+        parser.exit(1, "Could not prepare initial profile: {}\n".format(error))
