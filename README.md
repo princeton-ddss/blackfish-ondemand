@@ -88,7 +88,7 @@ by a newer version. Use separate homes for incompatible Blackfish versions.
 
 **Can a user run multiple instances of the app simultaneously?**
 
-Yes, but they must use a separate home directory for each simultaneous instance. 
+Yes, but they must use a separate home directory for each simultaneous instance.
 Instances sharing a home also share database state and an authentication-token file, which can cause conflicting initialization and CLI authentication problems.
 
 **I modified the site/form configuration, but I don't see any changes.**
