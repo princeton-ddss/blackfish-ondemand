@@ -8,17 +8,18 @@ require 'json'
 require 'yaml'
 require 'open3'
 require 'shellwords'
-require_relative '../lib/installations'
+require_relative '../lib/site_config'
 
 class LauncherTest < Minitest::Test
   ROOT = Pathname.new(__dir__).parent
 
   def setup
+    @previous_site_env = ENV.delete('BLACKFISH_OOD_CONFIG')
     @directory = Pathname.new(Dir.mktmpdir('blackfish-launcher'))
     @app = @directory.join('app')
     @stage = @directory.join('session')
-    FileUtils.mkdir_p([@app, @stage, @app.join('lib')])
-    FileUtils.cp(ROOT.join('lib/installations.rb'), @app.join('lib'))
+    FileUtils.mkdir_p([@app, @stage, @app.join('lib'), @app.join('config')])
+    FileUtils.cp(ROOT.join('lib/site_config.rb'), @app.join('lib'))
     FileUtils.cp(ROOT.join('template/launch_helpers.sh'), @stage)
     FileUtils.cp(ROOT.join('template/prepare_profile.py'), @stage)
     @executable = @directory.join('shared installation/blackfish')
@@ -44,11 +45,11 @@ class LauncherTest < Minitest::Test
     RUBY
     @executable.chmod(0755)
     @cache = @directory.join('shared cache')
-    @config = {'cache_dir' => @cache.to_s, 'default' => '1.0.0a0', 'versions' => {
+    @config = {'cluster' => 'example-cluster', 'cache_dir' => @cache.to_s, 'default' => '1.0.0a0', 'versions' => {
       '1.0.0a0' => {'executable' => @executable.to_s, 'modules' => []}
     }}
     save_config
-    @context = OpenStruct.new(blackfish_version: '1.0.0a0',
+    @context = OpenStruct.new(cluster: 'example-cluster', bc_num_hours: '1', blackfish_version: '1.0.0a0',
       home_dir: @directory.join('private home').to_s)
     FileUtils.mkdir_p(@cache)
     @environment = {'ARGUMENTS_FILE' => @stage.join('arguments.json').to_s,
@@ -56,11 +57,13 @@ class LauncherTest < Minitest::Test
   end
 
   def teardown
+    ENV.delete('BLACKFISH_OOD_CONFIG')
+    ENV['BLACKFISH_OOD_CONFIG'] = @previous_site_env if @previous_site_env
     FileUtils.remove_entry(@directory)
   end
 
   def save_config
-    @app.join('installations.yml').write(@config.to_yaml)
+    @app.join('config/site.yml').write(@config.to_yaml)
   end
 
   def render(file)
@@ -72,11 +75,12 @@ class LauncherTest < Minitest::Test
       return template.result(nil)
     end
     context = @context
-    session = OpenStruct.new(app: OpenStruct.new(root: @app))
+    session = (@session ||= OpenStruct.new(app: OpenStruct.new(root: @app)))
     ERB.new(ROOT.join(file).read, trim_mode: '-').result(binding)
   end
 
   def prepare_scripts
+    @session = OpenStruct.new(app: OpenStruct.new(root: @app))
     %w[before script after].each do |name|
       @stage.join("#{name}.sh").write(render("template/#{name}.sh.erb"))
     end
@@ -91,7 +95,7 @@ class LauncherTest < Minitest::Test
     run_shell(<<~'BASH', environment)
       find_port() { echo 8123; }
       create_passwd() { printf '%032d' 0; }
-      export host=node.princeton.edu
+      export host=node.example.edu
       source ./before.sh
       bash ./script.sh
     BASH
@@ -102,7 +106,7 @@ class LauncherTest < Minitest::Test
     run_shell(<<~'BASH', environment)
       find_port() { echo 8123; }
       create_passwd() { printf '%032d' 0; }
-      export host=node.princeton.edu
+      export host=node.example.edu
       source ./before.sh
       bash ./script.sh &
       SCRIPT_PID=$!
@@ -118,8 +122,41 @@ class LauncherTest < Minitest::Test
   end
 
   def test_repository_catalog_is_valid
-    config = BlackfishInstallations.load(ROOT)
+    config = BlackfishSiteConfig.validate(YAML.safe_load(ROOT.join('config/site.example.yml').read))
     assert config.fetch('versions').key?(config.fetch('default'))
+  end
+
+  def test_staged_scripts_use_one_snapshot_and_need_no_site_file_on_nodes
+    original_cache = @config.fetch('cache_dir')
+    before = render('template/before.sh.erb')
+    @config['cache_dir'] = @directory.join('changed cache').to_s
+    save_config
+    @app.join('config/site.yml').delete
+    ENV['BLACKFISH_OOD_CONFIG'] = '/unavailable/on/compute/nodes.yml'
+    script = render('template/script.sh.erb')
+    assert_includes script, Shellwords.escape(original_cache)
+    refute_includes script, Shellwords.escape(@config.fetch('cache_dir'))
+    @stage.join('before.sh').write(before)
+    @stage.join('script.sh').write(script)
+    output, error, status = run_shell(<<~'BASH', 'BLACKFISH_OOD_CONFIG' => '/unavailable/on/compute/nodes.yml')
+      find_port() { echo 8123; }
+      create_passwd() { printf '%032d' 0; }
+      export host=node.example.edu
+      source ./before.sh
+      bash ./script.sh
+    BASH
+    assert status.success?, "#{output}\n#{error}"
+    assert_equal original_cache, read_profiles.fetch('Default').fetch('cache_dir')
+  end
+
+  def test_form_uses_configured_cluster_and_duration
+    @config['cluster'] = 'gpu-cluster'
+    @config['duration_hours'] = {'default' => 2, 'max' => 6}
+    save_config
+    form = YAML.safe_load(render('form.yml.erb'))
+    assert_equal 'gpu-cluster', form.fetch('cluster')
+    assert_equal 2, form['attributes']['bc_num_hours']['value']
+    assert_equal 6, form['attributes']['bc_num_hours']['max']
   end
 
   def test_form_lists_configured_versions_and_home
@@ -155,7 +192,7 @@ class LauncherTest < Minitest::Test
     server = JSON.parse(@stage.join('server-environment.json').read)
     assert_equal '0.0.0.0', server.fetch('BLACKFISH_HOST')
     assert_equal '8123', server.fetch('BLACKFISH_PORT')
-    assert_equal '/node/node.princeton.edu/8123', server.fetch('BLACKFISH_BASE_PATH')
+    assert_equal '/node/node.example.edu/8123', server.fetch('BLACKFISH_BASE_PATH')
     assert_equal '0', server.fetch('BLACKFISH_DEBUG')
   end
 
@@ -370,7 +407,7 @@ class LauncherTest < Minitest::Test
   def test_relative_admin_cache_is_rejected_during_staging
     @config['cache_dir'] = 'relative/cache'
     save_config
-    assert_raises(RuntimeError) { prepare_scripts }
+    assert_raises(BlackfishSiteConfig::Error) { prepare_scripts }
   end
 
   def test_modules_are_loaded_before_executable_is_used
@@ -390,10 +427,10 @@ class LauncherTest < Minitest::Test
   def test_invalid_catalog_entries_are_rejected
     @config['versions']['1.0.0a0']['executable'] = 'blackfish'
     save_config
-    assert_raises(RuntimeError) { BlackfishInstallations.load(@app) }
+    assert_raises(BlackfishSiteConfig::Error) { BlackfishSiteConfig.load(@app) }
     @config['versions']['1.0.0a0']['modules'] = ['--help']
     save_config
-    assert_raises(RuntimeError) { BlackfishInstallations.load(@app) }
+    assert_raises(BlackfishSiteConfig::Error) { BlackfishSiteConfig.load(@app) }
   end
 
   def test_after_hook_waits_for_http_readiness
@@ -401,7 +438,7 @@ class LauncherTest < Minitest::Test
     output, error, status = run_shell(<<~'BASH')
       source ./launch_helpers.sh
       SCRIPT_PID=$$
-      host=node.princeton.edu
+      host=node.example.edu
       port=8123
       curl() { printf '%s\n' "$*" > probe.log; }
       clean_up() { exit "$1"; }
@@ -409,7 +446,7 @@ class LauncherTest < Minitest::Test
     BASH
     assert status.success?, "#{output}\n#{error}"
     assert_includes @stage.join('launch-status.txt').read, 'Ready!'
-    assert_includes @stage.join('probe.log').read, 'http://node.princeton.edu:8123/node/node.princeton.edu/8123/login'
+    assert_includes @stage.join('probe.log').read, 'http://node.example.edu:8123/node/node.example.edu/8123/login'
   end
 
   def test_after_hook_detects_early_exit

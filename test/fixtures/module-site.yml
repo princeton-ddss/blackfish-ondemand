@@ -1,0 +1,11 @@
+---
+cluster: gpu-cluster
+cache_dir: /work/ai/cache
+default: "2.0.0"
+versions:
+  "2.0.0":
+    executable: blackfish
+    modules: ["python/3.12", "blackfish/2.0.0"]
+duration_hours:
+  default: 2
+  max: 6

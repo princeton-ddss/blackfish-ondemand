@@ -2,7 +2,7 @@
 
 Reviewed the launch form, installation selection, all shell hooks, connection
 view, manifest, and deployment instructions. Local validation uses rendered
-templates with a fake shared installation, not a Della cluster session.
+templates with a fake shared installation, not a live site cluster session.
 
 ## Resolved findings
 
@@ -20,11 +20,10 @@ templates with a fake shared installation, not a Della cluster session.
 
 ## Remaining limitations and deployment validation
 
-- The shared executable and any future Blackfish module still need provisioning.
-  The initial catalog selects version 1.0.0; it does not assert that this is
-  the newest release. Check that release's Python/runtime
-  requirements and CLI behavior on Della before deploying.
-- Verify Slurm submission, the `della-vis2` hostname and port route, authentication
+- Each site must provision its shared installations and select a site config.
+  Committed examples are not active deployments. Check each selected release's
+  Python/runtime requirements and CLI behavior before deploying.
+- Verify Slurm submission, the site hostname and port route, authentication
   through the Open OnDemand proxy, and shared cache permissions in a dev session.
   Local tests cannot establish these site-specific properties.
 - The launcher creates `Default` only when no profiles exist. Existing profiles,
@@ -38,8 +37,9 @@ templates with a fake shared installation, not a Della cluster session.
   or downgrade guard. No concurrency guarantee is introduced by this launcher.
 - Launch feedback uses the documented Open OnDemand info/completed templates and
   updates when the card/page is refreshed. It is not a continuously streamed log.
-- Startup and browser access were confirmed in the Della dev deployment after
-  the IPv4 bind fix. The revised first-time profile behavior needs a new dev retest.
+- Site-specific validation history and the new configuration migration steps are
+  recorded in docs/deployments/princeton-della.md. The configuration refactor
+  needs a fresh site dev retest.
 - Test first launch, reuse of an existing home, another configured version, an
   inaccessible cache, a missing executable, failed profile initialization, and a
   server that exits before responding. Confirm failed jobs never show a connect

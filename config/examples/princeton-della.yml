@@ -1,6 +1,6 @@
 ---
-# Administrator-managed installations, readable on every Della node.
-# Provision this installation before deploying the app (see README.md).
+# Example deployment: Princeton Della. Copy explicitly to config/site.yml.
+cluster: "della-vis2"
 cache_dir: "/scratch/gpfs/DDSS/.blackfish"
 default: "1.0.0"
 versions:

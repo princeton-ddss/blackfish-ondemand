@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 <%
 require 'shellwords'
-require session.app.root.join('lib/installations').to_s
-installations = BlackfishInstallations.load(session.app.root)
+require session.app.root.join('lib/site_config').to_s
+site = BlackfishSiteConfig.for_session(session, context)
 %>
 
 set +x
@@ -12,7 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/launch_helpers.sh"
 trap 'launch_fail "Blackfish initialization or server process exited with an error"' ERR
 
 export BLACKFISH_HOME_DIR=<%= Shellwords.escape(context.home_dir.to_s) %>
-cache_dir=<%= Shellwords.escape(installations.fetch('cache_dir')) %>
+cache_dir=<%= Shellwords.escape(site.fetch('cache_dir')) %>
 [[ "$BLACKFISH_HOME_DIR" == /* ]] || launch_fail "Home directory must be an absolute path"
 
 launch_status "Preparing Blackfish home directory"
