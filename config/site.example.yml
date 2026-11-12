@@ -1,0 +1,14 @@
+---
+# Copy to config/site.yml and replace these values for your institution.
+# cluster must refer to a cluster already configured in Open OnDemand.
+cluster: "example-cluster"
+cache_dir: "/shared/blackfish/cache"
+default: "1.0.0"
+versions:
+  "1.0.0":
+    executable: "/shared/blackfish/envs/1.0.0/bin/blackfish"
+    modules: []
+# Optional form defaults and submission limit; omit max for no app-level limit.
+duration_hours:
+  default: 1
+  max: 8

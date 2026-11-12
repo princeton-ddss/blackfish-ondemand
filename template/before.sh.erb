@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 <%
 require 'shellwords'
-require session.app.root.join('lib/installations').to_s
-installations = BlackfishInstallations.load(session.app.root)
+require session.app.root.join('lib/site_config').to_s
+site = BlackfishSiteConfig.for_session(session, context)
 version = context.blackfish_version.to_s
-installation = installations.fetch('versions').fetch(version) do
+installation = site.fetch('versions').fetch(version) do
   raise "Blackfish version #{version.inspect} is unavailable. Relaunch and select a listed version."
 end
 %>

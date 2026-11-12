@@ -1,26 +1,29 @@
 <%
 require 'json'
 app_root = File.expand_path(__dir__)
-require File.join(app_root, 'lib/installations')
-installations = BlackfishInstallations.load(app_root)
+require File.join(app_root, 'lib/site_config')
+site = BlackfishSiteConfig.load(app_root)
 %>
 ---
-cluster: "della-vis2"
+cluster: <%= site.fetch('cluster').to_json %>
 form:
   - bc_num_hours
   - blackfish_version
   - home_dir
 attributes:
   bc_num_hours:
-    value: 1
+    value: <%= site.fetch('duration_hours').fetch('default') %>
+<% if site.fetch('duration_hours')['max'] %>
+    max: <%= site.fetch('duration_hours').fetch('max') %>
+<% end %>
     label: "Duration"
     help: "Time in hours to run the server for."
   blackfish_version:
     widget: select
     label: "Blackfish Version"
-    value: <%= installations.fetch('default').to_json %>
+    value: <%= site.fetch('default').to_json %>
     options:
-<% installations.fetch('versions').each_key do |version| %>
+<% site.fetch('versions').each_key do |version| %>
       - <%= [version, version].to_json %>
 <% end %>
     help: "Choose a shared installation. When switching versions, use a separate home directory to avoid incompatible database migrations."

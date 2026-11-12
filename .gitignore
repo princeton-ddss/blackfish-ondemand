@@ -1,2 +1,6 @@
 .venv/
 src/
+
+# Active dev deployment configuration; examples remain tracked.
+/config/site.yml
+__pycache__/
