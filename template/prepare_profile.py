@@ -13,6 +13,10 @@ import os
 from pathlib import Path
 
 
+class CacheDirectoryError(ValueError):
+    """The admin cache cannot be used for initial profile creation."""
+
+
 def ensure_profile(home_dir, cache_dir, user):
     home = Path(home_dir)
     if not home.is_absolute():
@@ -33,9 +37,9 @@ def ensure_profile(home_dir, cache_dir, user):
         # The admin cache is only required for first-time profile creation.
         cache = Path(cache_dir)
         if not cache.is_absolute():
-            raise ValueError("Admin cache directory must be an absolute path")
+            raise CacheDirectoryError("Admin cache directory must be an absolute path")
         if not cache.is_dir() or not os.access(cache, os.R_OK | os.X_OK):
-            raise ValueError("Admin cache directory must exist and be readable")
+            raise CacheDirectoryError("Admin cache directory must exist and be readable")
 
         # Preserve comments or INI defaults in an otherwise empty profile file.
         entry = configparser.ConfigParser()
@@ -64,5 +68,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     try:
         ensure_profile(args.home_dir, args.cache_dir, args.user)
+    except CacheDirectoryError as error:
+        parser.exit(2, "Could not prepare initial profile: {}\n".format(error))
     except (OSError, ValueError, configparser.Error) as error:
         parser.exit(1, "Could not prepare initial profile: {}\n".format(error))

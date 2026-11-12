@@ -97,6 +97,26 @@ class LauncherTest < Minitest::Test
     BASH
   end
 
+  def wrapped_launcher(environment = {})
+    prepare_scripts
+    run_shell(<<~'BASH', environment)
+      find_port() { echo 8123; }
+      create_passwd() { printf '%032d' 0; }
+      export host=node.princeton.edu
+      source ./before.sh
+      bash ./script.sh &
+      SCRIPT_PID=$!
+      curl() { return 1; }
+      sleep() { command sleep 0.02; }
+      clean_up() { wait "$SCRIPT_PID" 2>/dev/null || :; exit "$1"; }
+      source ./after.sh
+    BASH
+  end
+
+  def failure_messages
+    @stage.join('launch-status.txt').read.lines.select { |line| line.include?('] Failed:') }
+  end
+
   def test_repository_catalog_is_valid
     config = BlackfishInstallations.load(ROOT)
     assert config.fetch('versions').key?(config.fetch('default'))
@@ -291,6 +311,60 @@ class LauncherTest < Minitest::Test
     refute status.success?
     assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
     refute @stage.join('started').exist?
+  end
+
+  def test_wrapper_retains_specific_admin_cache_failure_once
+    @config['cache_dir'] = @directory.join('misspecified admin cache').to_s
+    save_config
+    _, _, status = wrapped_launcher
+    refute status.success?
+    assert_equal 1, failure_messages.length
+    assert_includes failure_messages.first, "Cannot create Default: the administrator's cache directory is missing or unreadable"
+    assert_includes failure_messages.first, @config.fetch('cache_dir')
+    refute @stage.join('started').exist?
+  end
+
+  def test_wrapper_retains_default_profile_validation_failure_once
+    existing = "[research]\nschema = unknown\ndefault = true\n"
+    write_profiles(existing)
+    _, _, status = wrapped_launcher('PROFILE_EXIT' => '1')
+    refute status.success?
+    assert_equal 1, failure_messages.length
+    assert_includes failure_messages.first, 'No usable default profile is available'
+    assert_equal existing, File.read(File.join(@context.home_dir, 'profiles.cfg'))
+    refute @stage.join('started').exist?
+  end
+
+  def test_wrapper_retains_initialization_failure_once
+    _, _, status = wrapped_launcher('INIT_EXIT' => '1')
+    refute status.success?
+    assert_equal 1, failure_messages.length
+    assert_includes failure_messages.first, 'Could not initialize Blackfish application data'
+    refute @stage.join('started').exist?
+  end
+
+  def test_wrapper_retains_server_failure_once
+    _, _, status = wrapped_launcher('START_EXIT' => '1')
+    refute status.success?
+    assert_equal 1, failure_messages.length
+    assert_includes failure_messages.first, 'Blackfish server exited with an error'
+  end
+
+  def test_after_hook_stops_on_recorded_failure_even_before_process_exits
+    prepare_scripts
+    _, _, status = run_shell(<<~'BASH')
+      source ./launch_helpers.sh
+      launch_error 'Original setup error'
+      SCRIPT_PID=$$
+      curl() { touch unexpected-probe; return 0; }
+      clean_up() { exit "$1"; }
+      source ./after.sh
+    BASH
+    refute status.success?
+    assert_equal 1, failure_messages.length
+    assert_includes failure_messages.first, 'Original setup error'
+    refute @stage.join('unexpected-probe').exist?
+    refute_includes @stage.join('launch-status.txt').read, 'Ready!'
   end
 
   def test_relative_admin_cache_is_rejected_during_staging

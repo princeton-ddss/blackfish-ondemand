@@ -138,7 +138,11 @@ output, which can include authentication credentials.
 A connection is published only after the login page responds successfully over
 HTTP. The launcher detects an early server exit and stops waiting after roughly
 120 seconds. Missing shared installations, version mismatches, invalid directories,
-and setup errors fail the job instead of proceeding to startup. The launcher does
+and setup errors fail the job instead of proceeding to startup. The card retains
+the first failure message; the wrapper does not append a redundant process-exit
+error. An initial profile creation failure identifies an unavailable admin cache
+and its configured path. Detailed subprocess diagnostics remain in output.log.
+The launcher does
 not print the authentication token or enable shell tracing. Treat session files
 and logs as private because the connection file and application output can contain
 credentials.
