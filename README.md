@@ -1,174 +1,112 @@
 # Blackfish for Open OnDemand
 
-The official Open OnDemand application for Blackfish-AI. It launches a Blackfish
-server on a login node with minimal resources. Users authenticate and interact with
-the server through the OOD proxy and Blackfish UI in their browser. Sessions use
-administrator-managed shared installations.
+A reusable Open OnDemand app for launching a shared Blackfish installation.
+Users choose a configured version, an application home, and a duration. Sites
+configure their cluster, cache, installations, modules, and optional duration
+limits without editing application code.
 
-## Shared installation setup
+## Configure a deployment
 
-An administrator must provision the shared executable before deploying this
-change. The path in `installations.yml` is a proposed location, not an existing
-installation verified by this repository. Choose a durable shared filesystem
-accessible from the dashboard and all `della` nodes. The installer must have
-write access; ordinary app users need only read and execute access.
-
-For the initially configured version, run once on Della as the installation owner:
+Clone this repository under your Open OnDemand dev app directory, then create an
+explicit site configuration:
 
 ```bash
-module load anaconda3/2024.6
+cp config/site.example.yml config/site.yml
+```
+
+Edit `config/site.yml` for your institution. It is ignored by Git. The example
+contains placeholder paths and is never loaded automatically. Alternatively,
+set `BLACKFISH_OOD_CONFIG` in the dashboard's environment to an absolute YAML path,
+such as `/etc/ood/config/apps/blackfish-ondemand/site.yml`. An explicitly selected
+file takes precedence; errors do not fall back to another file.
+
+A missing site configuration produces a setup error. There is no implicit cluster,
+shared cache, installation, or institutional default. The configured cluster ID
+must already exist in Open OnDemand's cluster configuration. Scheduler connections,
+hostname routing, and proxy configuration remain the site's OnDemand responsibility.
+
+See [Configuration](docs/configuration.md) for the schema and deployment behavior.
+The public [Princeton Della example](docs/deployments/princeton-della.md) documents
+one deployment; it is not the active configuration of a clean checkout.
+
+## Shared installations
+
+An administrator provisions each exact Blackfish version once in its final shared
+location and lists it in the site config. Sessions never create environments or
+install or upgrade packages. For example, with a compatible Python available:
+
+```bash
+install_dir=/shared/blackfish/envs/1.0.0
 umask 022
-install_dir=/scratch/gpfs/DDSS/.blackfish/envs/1.0.0
-# Use a fresh destination. Do not replace an installation while sessions use it.
 test ! -e "$install_dir" || exit 1
-python -m venv "$install_dir"
+python3.12 -m venv "$install_dir"
 "$install_dir/bin/python" -m pip install 'blackfish-ai==1.0.0'
 PYTHONNOUSERSITE=1 "$install_dir/bin/blackfish" version
 ```
 
-This creates one shared Python environment, rather than an environment per user.
-Check that the module provides a Python version supported by the selected release
-(Python 3.12 for current Blackfish). All parent directories must be traversable by
-app users. Keep the installation and modulefiles writable only by administrators.
-Provision container images separately in the shared cache. Installation paths are
-embedded in Python entry points: create each environment at its final location.
+Choose a shared path accessible from every target node. Keep the installation
+writable only by administrators and readable/executable by app users. Environment
+entry points contain absolute paths, so create environments at their final paths.
+Provision required container images separately in the shared cache. Install new
+versions in separate directories and retain older installations until their queued
+and running sessions have finished. Module-provided installations are also supported.
 
-For each additional release, install into a separate version directory and add
-its exact package version and executable to `installations.yml`. Set `default` to
-one of its version keys. Only configured versions appear in the launch form;
-stale or forged version selections are rejected, and the launcher checks the
-executable's reported version before initializing user data. Version choices are
-snapshotted into staged sessions, so keep old installations available until their
-queued and running sessions have ended.
+The runtime needs Bash, curl, Python 3 with its standard library, and the selected
+Blackfish installation and its dependencies. When modules are configured, the app
+uses an existing module function or `/etc/profile.d/modules.sh`, purges inherited
+modules, and loads the configured list. Sites with another module initialization
+method should make the module function available through their OnDemand job setup.
 
-## Moving to environment modules
+## User behavior
 
-The catalog already supports environment modules. Once a site module is available,
-an entry can use the executable provided by that module:
+The form offers duration, configured Blackfish versions, and application home.
+The generic home default is `~/.blackfish`; users may choose another absolute path.
+Previously saved form values can retain `~/.blackfish-ondemand`. Data is not moved.
 
-```yaml
-cache_dir: "/scratch/gpfs/DDSS/.blackfish"
-default: "1.0.0"
-versions:
-  "1.0.0":
-    executable: "blackfish"
-    modules: ["blackfish/1.0.0"]
-```
+When any profiles exist, the launcher preserves them and their resolved default.
+Only a home without profiles receives an initial profile named `Default`, using
+`localhost`, the current user, the selected home, and the administrator's cache.
+The bootstrap currently creates Slurm profiles; other scheduler integrations would
+need corresponding Blackfish support. Existing profiles are not added to, renamed,
+or replaced. The admin cache is checked only for first-time profile creation.
+Users manage existing profiles in Blackfish or its CLI. Malformed configuration
+stops startup instead of being overwritten.
 
-A minimal Tcl modulefile at `<module-root>/blackfish/1.0.0` would contain:
+Run one server per home. Use separate homes for incompatible Blackfish versions:
+Blackfish migrates data and records its version without an explicit downgrade guard.
 
-```tcl
-#%Module1.0
-module load anaconda3/2024.6
-prepend-path PATH /scratch/gpfs/DDSS/.blackfish/envs/1.0.0/bin
-setenv PYTHONNOUSERSITE 1
-```
+## Launch feedback
 
-Cluster administrators should publish it under the site's module search path,
-and ensure any Apptainer or other runtime dependencies are also available.
-The app initializes environment modules if necessary, purges inherited modules,
-and loads the configured module list. An empty module list supports an absolute
-shared executable that requires no environment modules.
+Active and completed session cards show up to 40 timestamped launch entries.
+`launch-status.txt` retains the history; detailed Blackfish output is in
+`output.log`, available through OnDemand's session-data link. The card displays
+launcher progress, not raw Blackfish output. Blackfish itself can print startup
+credentials in private job output; the launcher does not duplicate tokens or
+turn on shell tracing.
 
-## Deployment
+The first failure is retained without a redundant wrapper error. Initial cache
+failures identify the configured path. A connection is published only after HTTP
+readiness, with early-exit detection and a roughly 120-second startup deadline.
+The server binds all IPv4 interfaces while proxy URLs retain the node hostname.
+The local readiness probe cannot verify connectivity from the OnDemand host.
 
-Clone the app under the appropriate Open OnDemand stage:
+Feedback updates with the session card/page rather than streaming continuously.
+OnDemand may cache form configuration: use **Help > Restart Web Server** after
+site configuration or form changes if values remain stale.
 
-```bash
-cd "$HOME/ondemand/dev"
-git clone https://github.com/princeton-ddss/blackfish-ondemand.git
-```
-
-Configure `installations.yml`, verify the shared executable from a visualization
-node as a regular app user, and launch a dev session before deploying under
-`$HOME/ondemand/share`. Updating the app checkout does not update shared packages.
-Open OnDemand may cache the form configuration; use **Help > Restart Web Server**
-after changing the catalog if choices do not refresh.
-
-## Launch form
-
-- **Duration:** requested server lifetime in hours.
-- **Blackfish Version:** one of the exact shared versions in `installations.yml`.
-- **Blackfish Home Directory:** a private absolute path for the database, settings,
-  and the initial profile's working files. Defaults to the launching user's `~/.blackfish`;
-  created with private permissions if missing. Existing form values may still
-  remember `~/.blackfish-ondemand`; no existing data is moved automatically.
-
-## Initial profile
-
-Administrators set the shared cache directory with the top-level `cache_dir` in
-`installations.yml`. Users do not select a cache directory in the launch form.
-A Python 3 interpreter with the standard library must be available on the job's
-PATH; the configured Anaconda module supplies one for the initial installation.
-
-Before initialization, the launcher checks the selected home's `profiles.cfg`.
-If any profiles exist, it leaves them and their default selection unchanged.
-It does not add, rename, or replace a profile, including any `ondemand` profiles
-created by earlier versions of this launcher.
-
-Only when no profiles exist, the launcher creates a Slurm profile named `Default`
-with `localhost`, the current user, the selected home directory, and the admin
-cache. It marks that profile as the default. The admin cache must exist and be
-readable for this initial setup; existing profiles do not depend on its current
-value. Users can create, edit, and select other profiles through Blackfish or
-its CLI. Old cached `cache_dir` form input is ignored by the launcher.
-
-The profile helper preserves comments and existing configuration. Blackfish then
-bootstraps its application data and validates the resolved default before starting
-the server. Malformed profile configuration stops startup instead of being
-replaced. Changing the admin cache affects initial profile creation in homes
-without profiles; it does not update existing profile settings.
-
-Run one session per home directory. Use separate home directories when switching
-versions: Blackfish currently runs migrations and records the running version,
-but does not compare it with the home directory's previous application version
-before making changes. A database migration can make downgrades incompatible.
-
-## Launch feedback and troubleshooting
-
-The session card shows timestamped launch steps in a scrollable log, including
-loading the installation, checking profiles, initializing data,
-starting the server, and ready/failed. Up to the latest 40 entries are shown;
-completed sessions retain that history. `launch-status.txt` contains the complete
-launch-step history. It updates when the session card is refreshed by OnDemand
-or the page is reloaded; this is not a continuously streamed log.
-
-Detailed Blackfish output remains in `output.log`, accessible through OnDemand's
-session-data link. The card displays only launcher progress, not raw Blackfish
-output, which can include authentication credentials.
-
-A connection is published only after the login page responds successfully over
-HTTP. The launcher detects an early server exit and stops waiting after roughly
-120 seconds. Missing shared installations, version mismatches, invalid directories,
-and setup errors fail the job instead of proceeding to startup. The card retains
-the first failure message; the wrapper does not append a redundant process-exit
-error. An initial profile creation failure identifies an unavailable admin cache
-and its configured path. Detailed subprocess diagnostics remain in output.log.
-The launcher does
-not print the authentication token or enable shell tracing. Treat session files
-and logs as private because the connection file and application output can contain
-credentials.
-
-The server binds to `0.0.0.0`, while proxy URLs retain the node hostname.
-This lets the proxy connect through any IPv4 interface on a node with multiple
-network interfaces. The readiness probe runs on the compute node; it cannot
-verify connectivity from the OnDemand host. If the session is ready but the
-Connect button reports a connection failure, check the OnDemand host's DNS,
-route, firewall, and proxy configuration for that node and port.
-
-## Local validation
-
-With Ruby and Minitest available:
+## Validation
 
 ```bash
-ruby test/launcher_test.rb
+ruby test/run.rb
 ```
 
-Tests render the real templates and run them with a fake shared executable. They
-cover version selection, module loading, literal path handling, first-time profile
-creation, preservation of existing profiles, defaults, and settings, setup failures, HTTP
-readiness, timeout, early exit, and escaped status HTML.
-Actual Slurm submission, modulefiles, proxy login, and shared cache permissions
-must be verified with an Open OnDemand dev session on Della.
+Tests use temporary, neutral deployments and fake executables. They need Ruby,
+Minitest, Bash, and Python 3; no site.yml, cluster, shared installation, or network
+access is required. They cover configuration selection and validation, staging
+snapshots, both executable/module forms, profile preservation, failure handling,
+readiness, and escaped timestamped feedback.
 
-See `REVIEW.md` for review findings and remaining deployment checks.
+There is no CI in this repository. Before deployment, rerun the local suite and
+verify a dev session with a fresh home, an existing home, proxy authentication,
+shared cache access, launch history, and deliberate configuration/setup failures.
+[REVIEW.md](REVIEW.md) records existing findings and limitations.
