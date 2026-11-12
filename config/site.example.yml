@@ -1,7 +1,6 @@
 ---
 # Copy to config/site.yml and replace these values for your institution.
-# cluster must refer to a cluster already configured in Open OnDemand.
-cluster: "example-cluster"
+cluster: "example-cluster" # must refer to a cluster already configured in Open OnDemand.
 cache_dir: "/shared/blackfish/cache"
 default: "1.0.0"
 versions:
