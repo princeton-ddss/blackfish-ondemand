@@ -1,0 +1,28 @@
+# Appverse catalog metadata. See the contributor guide before editing:
+# https://openondemand.connectci.org/appverse-contributor-documentation
+#
+# NOTE: `software` must match an existing Software entry in the Appverse
+# catalog (case-insensitive) or this app is rejected. Confirm "Blackfish" is
+# listed at https://openondemand.connectci.org/appverse before submitting;
+# if it is not, email the Appverse team to request it first.
+
+title: "Blackfish"
+description: >-
+  Launches a per-user Blackfish AI model-serving server, from a shared
+  installation, on a login/visualization node selected as the Open OnDemand
+  cluster target (not submitted as a Slurm batch job to a compute node).
+  Users pick a site-provisioned Blackfish version, an application home
+  directory, and a session duration; sites configure the cluster, shared
+  cache, installations, modules, and optional duration limits without
+  editing application code.
+software: "Blackfish"
+app_type: "batch-connect-basic"
+implementation_tags:
+  - "api"
+  - "apptainer"
+  - "modules"
+maintainer:
+  name: "Princeton DDSS"
+  support_url: "https://github.com/princeton-ddss/blackfish-ondemand/issues"
+website: "https://github.com/princeton-ddss/blackfish"
+docs: "https://princeton-ddss.github.io/blackfish/latest/admin/architecture/"
