@@ -1,10 +1,5 @@
 # Appverse catalog metadata. See the contributor guide before editing:
 # https://openondemand.connectci.org/appverse-contributor-documentation
-#
-# NOTE: `software` must match an existing Software entry in the Appverse
-# catalog (case-insensitive) or this app is rejected. Confirm "Blackfish" is
-# listed at https://openondemand.connectci.org/appverse before submitting;
-# if it is not, email the Appverse team to request it first.
 
 title: "Blackfish"
 description: >-
