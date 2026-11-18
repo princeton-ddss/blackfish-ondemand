@@ -4,6 +4,21 @@ All notable changes to this app are documented here. Versions follow
 [Semantic Versioning](https://semver.org/) and match the Git tags in this
 repository.
 
+## [0.5.0] - 2026-11-18
+
+### Added
+
+- Added `LICENSE` (MIT), `CHANGELOG.md`, and `appverse.yml` catalog metadata
+  to prepare the app for submission to the Open OnDemand Appverse.
+
+### Changed
+
+- Reshaped `README.md` into the Overview/Requirements/Installation/
+  Configuration/Known Limitations structure, and corrected the description
+  of where the Blackfish server runs: on a login/visualization node, not as
+  a Slurm batch job on a compute node.
+- Added `min` and `required` to the `bc_num_hours` form field.
+
 ## [0.4.0] - 2026-11-12
 
 ### Changed
